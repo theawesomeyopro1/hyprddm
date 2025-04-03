@@ -16,6 +16,8 @@ The easiest way to install hyprDDM and use the theme selector is to run the `ins
 
 ```sh
 git clone https://github.com/nomadxxxx/hyprddm.git
+```
+```sh
 cd hyprddm
 ./install.sh
 ```
