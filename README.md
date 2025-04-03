@@ -15,7 +15,8 @@ HyprDDM is a fork of the sddm-astronaut-theme by Keyitdev with new themes and YA
 The easiest way to install hyprDDM and use the theme selector is to run the `install.sh` script:
 
 ```sh
-sh -c "$(curl -fsSL https://raw.githubusercontent.com/nomadxxxx/hyprddm/master/install.sh)"
+git clone https://github.com/nomadxxxx/hyprddm.git
+./install.sh
 ```
 ## Detailed Previews
 
