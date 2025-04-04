@@ -3,8 +3,9 @@
 # SDDM Astronaut Theme Selector with YAD GUI
 # A script to select and apply themes for SDDM using the sddm-astronaut-theme project.
 
-# Define paths
-HYPRDDM_DIR="$HOME/hyprddm"
+# Define paths using the original user's home directory
+ORIGINAL_HOME="$HOME"
+HYPRDDM_DIR="$ORIGINAL_HOME/hyprddm"
 THEMES_PATH="/usr/share/sddm/themes/sddm-astronaut-theme"
 FONTS_PATH="/usr/share/fonts"
 METADATA_FILE="$THEMES_PATH/metadata.desktop"
@@ -78,6 +79,14 @@ check_and_install_theme() {
         log "Successfully removed $THEMES_PATH."
     fi
 
+    # Explicitly create the target directory
+    log "Creating target directory $THEMES_PATH..."
+    pkexec mkdir -p "$THEMES_PATH"
+    if [ $? -ne 0 ]; then
+        log "Error: Failed to create $THEMES_PATH directory."
+        exit 1
+    fi
+
     # Proceed with installation
     log "Installing SDDM Astronaut Theme from local repository..."
     log "Copying repository contents from $HYPRDDM_DIR to $THEMES_PATH..."
@@ -115,6 +124,7 @@ self_elevate() {
 
         export ORIGINAL_USER=$(whoami)
         export ORIGINAL_UID=$(id -u)
+        export ORIGINAL_HOME="$HOME"
         export ORIGINAL_DISPLAY=${DISPLAY:-":1"}
         export ORIGINAL_XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-"/run/user/$ORIGINAL_UID"}
         export ORIGINAL_XAUTHORITY=${XAUTHORITY:-"$HOME/.Xauthority"}
@@ -137,6 +147,7 @@ self_elevate() {
             XAUTHORITY="$ORIGINAL_XAUTHORITY" \
             ORIGINAL_USER="$ORIGINAL_USER" \
             ORIGINAL_UID="$ORIGINAL_UID" \
+            ORIGINAL_HOME="$ORIGINAL_HOME" \
             "$SCRIPT_PATH"
         
         log "Revoking root access to X server..."
@@ -149,6 +160,7 @@ self_elevate() {
         export XDG_RUNTIME_DIR="$ORIGINAL_XDG_RUNTIME_DIR"
         export DISPLAY="$ORIGINAL_DISPLAY"
         export XAUTHORITY="$ORIGINAL_XAUTHORITY"
+        export HOME="$ORIGINAL_HOME"
     fi
 }
 
@@ -234,19 +246,18 @@ test_theme() {
 
 # Function to download the repository
 download_repository() {
-    log "Checking for existing hyprddm directory in $HOME..."
+    log "Checking for existing hyprddm directory in $ORIGINAL_HOME..."
     if [ -d "$HYPRDDM_DIR" ]; then
         log "Directory $HYPRDDM_DIR already exists. Removing it to ensure a clean download..."
         rm -rf "$HYPRDDM_DIR"
     fi
 
-    log "Creating hyprddm directory in $HOME..."
+    log "Creating hyprddm directory in $ORIGINAL_HOME..."
     mkdir -p "$HYPRDDM_DIR"
 
     log "Cloning repository from https://github.com/nomadxxxx/hyprddm.git to $HYPRDDM_DIR..."
     git clone -b master --depth 1 --progress https://github.com/nomadxxxx/hyprddm.git "$HYPRDDM_DIR" 2>&1
-    
-    if [ $? -ne 0 ]; then
+        if [ $? -ne 0 ]; then
         log "Error: Failed to clone the repository. Please check your internet connection and try again."
         exit 1
     fi
