@@ -9,7 +9,7 @@ METADATA_FILE="$THEMES_PATH/metadata.desktop"
 SDDM_CONF="/etc/sddm.conf"
 VIRTUAL_KBD_CONF="/etc/sddm.conf.d/virtualkbd.conf"
 TEMP_DIR="/tmp/sddm-previews-$USER"
-SCRIPT_PATH=$(readlink -f "$0")
+SCRIPT_PATH=$(realpath "$0")
 
 # Function to detect distribution
 detect_distribution() {
@@ -102,7 +102,7 @@ self_elevate() {
         fi
         
         xhost +SI:localuser:root >/dev/null 2>&1
-        sudo -E env DISPLAY="$ORIGINAL_DISPLAY" \
+        pkexec env DISPLAY="$ORIGINAL_DISPLAY" \
             XDG_RUNTIME_DIR="$ORIGINAL_XDG_RUNTIME_DIR" \
             XAUTHORITY="$ORIGINAL_XAUTHORITY" \
             ORIGINAL_USER="$ORIGINAL_USER" \
