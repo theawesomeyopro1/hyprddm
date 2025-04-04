@@ -53,7 +53,7 @@ install_dependencies() {
 check_and_install_theme() {
     if [ ! -d "$THEMES_PATH" ] || [ ! -f "$THEMES_PATH/Themes/astronaut.conf" ]; then
         echo "SDDM Astronaut Theme files are missing. Installing from nomadxxxx's fork..."
-        sudo git clone -b master --depth 1 https://github.com/nomadxxxx/sddm-astronaut-theme.git "$THEMES_PATH"
+        sudo git clone -b master --depth 1 https://github.com/nomadxxxx/hyprddm.git "$THEMES_PATH"
         
         if [ -d "$THEMES_PATH/Fonts" ]; then
             sudo mkdir -p "$FONTS_PATH"
@@ -124,20 +124,20 @@ prepare_thumbnails() {
     
     declare -A theme_previews
     theme_previews=(
-        ["chainsaw_fury"]="https://github.com/nomadxxxx/sddm-astronaut-theme/raw/master/Backgrounds/chainsaw_fury.png"
-        ["cloud"]="https://github.com/nomadxxxx/sddm-astronaut-theme/raw/master/Backgrounds/cloud.png"
-        ["neon_jinx"]="https://github.com/nomadxxxx/sddm-astronaut-theme/raw/master/Backgrounds/neon_jinx.png"
-        ["savage"]="https://github.com/nomadxxxx/sddm-astronaut-theme/raw/master/Backgrounds/savage.png"
-        ["starman"]="https://github.com/nomadxxxx/sddm-astronaut-theme/raw/master/Backgrounds/starman.png"
-        ["astronaut"]="https://github.com/nomadxxxx/sddm-astronaut-theme/raw/master/Backgrounds/astronaut.png"
-        ["black_hole"]="https://github.com/nomadxxxx/sddm-astronaut-theme/raw/master/Backgrounds/black_hole.png"
-        ["cyberpunk"]="https://github.com/nomadxxxx/sddm-astronaut-theme/raw/master/Backgrounds/cyberpunk.png"
-        ["hyprland_kath"]="https://github.com/nomadxxxx/sddm-astronaut-theme/raw/master/Backgrounds/hyprland_kath.png"
-        ["jake_the_dog"]="https://github.com/nomadxxxx/sddm-astronaut-theme/raw/master/Backgrounds/jake_the_dog.png"
-        ["japanese_aesthetic"]="https://github.com/nomadxxxx/sddm-astronaut-theme/raw/master/Backgrounds/japanese_aesthetic.png"
-        ["pixel_sakura"]="https://github.com/nomadxxxx/sddm-astronaut-theme/raw/master/Backgrounds/pixel_sakura_static.png"
-        ["post-apocalyptic_hacker"]="https://github.com/nomadxxxx/sddm-astronaut-theme/raw/master/Backgrounds/post-apocalyptic_hacker.png"
-        ["purple_leaves"]="https://github.com/nomadxxxx/sddm-astronaut-theme/raw/master/Backgrounds/purple_leaves.png"
+        ["chainsaw_fury"]="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/chainsaw_fury.png"
+        ["cloud"]="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/cloud.png"
+        ["neon_jinx"]="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/neon_jinx.png"
+        ["savage"]="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/savage.png"
+        ["starman"]="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/starman.png"
+        ["astronaut"]="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/astronaut.png"
+        ["black_hole"]="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/black_hole.png"
+        ["cyberpunk"]="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/cyberpunk.png"
+        ["hyprland_kath"]="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/hyprland_kath.png"
+        ["jake_the_dog"]="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/jake_the_dog.png"
+        ["japanese_aesthetic"]="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/japanese_aesthetic.png"
+        ["pixel_sakura"]="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/pixel_sakura_static.png"
+        ["post-apocalyptic_hacker"]="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/post-apocalyptic_hacker.png"
+        ["purple_leaves"]="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/purple_leaves.png"
     )
     
     for theme in "${!theme_previews[@]}"; do
