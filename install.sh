@@ -175,7 +175,6 @@ prepare_thumbnails() {
         ["savage"]="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/savage.png"
         ["starman"]="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/starman.png"
         ["astronaut"]="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/astronaut.png"
-        ["black_hole"]="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/black_hole.png"
         ["cyberpunk"]="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/cyberpunk.png"
         ["hyprland_kath"]="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/hyprland_kath.png"
         ["jake_the_dog"]="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/jake_the_dog.png"
@@ -183,6 +182,9 @@ prepare_thumbnails() {
         ["pixel_sakura"]="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/pixel_sakura_static.png"
         ["post-apocalyptic_hacker"]="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/post-apocalyptic_hacker.png"
         ["purple_leaves"]="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/purple_leaves.png"
+        ["renzu"]="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/renzu.png"
+        ["cybermonk"]="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/cybermonk.png"
+        ["ghost"]="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/ghost.png"
     )
     
     for theme in "${!theme_previews[@]}"; do
@@ -270,15 +272,17 @@ main() {
     # Prepare thumbnails
     prepare_thumbnails
     
-    # List of available themes (new themes)
-        THEMES=(
+    # List of available themes (new themes at the top, removed black_hole)
+    THEMES=(
+        "renzu"
+        "cybermonk"
+        "ghost"
         "chainsaw_fury"
         "cloud"
         "neon_jinx"
         "savage"
         "starman"
         "astronaut"
-        "black_hole"
         "cyberpunk"
         "hyprland_kath"
         "jake_the_dog"
