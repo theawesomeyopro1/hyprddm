@@ -11,6 +11,9 @@ VIRTUAL_KBD_CONF="/etc/sddm.conf.d/virtualkbd.conf"
 TEMP_DIR="/tmp/sddm-previews-$USER"
 TEMP_SCRIPT="/tmp/install-hyprddm-$USER.sh"
 
+# Enable debug output
+set -x
+
 # Function to detect distribution
 detect_distribution() {
     if [ -f /etc/arch-release ]; then
@@ -24,6 +27,7 @@ detect_distribution() {
     else
         DISTRO="unknown"
     fi
+    echo "Detected distribution: $DISTRO"
 }
 
 # Function to install dependencies
@@ -97,13 +101,17 @@ InputMethod=qtvirtualkeyboard" | sudo tee "$VIRTUAL_KBD_CONF"
 self_elevate() {
     if [ "$(id -u)" -ne 0 ]; then
         echo "Elevating privileges..."
+        echo "Current shell: $0"
+        echo "Checking if script is piped..."
 
         # If the script is being piped (e.g., via curl | sh), save it to a temporary file
         if [ ! -f "$0" ] || [ "$0" = "sh" ] || [ "$0" = "bash" ] || [[ "$0" =~ ^/.*sh$ ]]; then
+            echo "Script is being piped. Saving to temporary file: $TEMP_SCRIPT"
             cat - > "$TEMP_SCRIPT"
             chmod +x "$TEMP_SCRIPT"
             SCRIPT_TO_RUN="$TEMP_SCRIPT"
         else
+            echo "Script is not piped. Using original path: $0"
             SCRIPT_TO_RUN="$0"
         fi
 
@@ -113,20 +121,27 @@ self_elevate() {
         export ORIGINAL_XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-"/run/user/$ORIGINAL_UID"}
         export ORIGINAL_XAUTHORITY=${XAUTHORITY:-"$HOME/.Xauthority"}
         
+        echo "Setting up Xauthority..."
         [ -f "$ORIGINAL_XAUTHORITY" ] || touch "$ORIGINAL_XAUTHORITY"
         xauth generate "$ORIGINAL_DISPLAY" . trusted 2>/dev/null
         
+        echo "Testing XWayland access..."
         if ! DISPLAY="$ORIGINAL_DISPLAY" XDG_RUNTIME_DIR="$ORIGINAL_XDG_RUNTIME_DIR" XAUTHORITY="$ORIGINAL_XAUTHORITY" yad --title="Test" --text="Pre-elevation test" --timeout=1 2>/dev/null; then
             echo "Warning: Pre-elevation XWayland test failed. Display may not work correctly."
         fi
         
+        echo "Granting root access to X server..."
         xhost +SI:localuser:root >/dev/null 2>&1
+        
+        echo "Executing sudo command to elevate privileges..."
         sudo -E env DISPLAY="$ORIGINAL_DISPLAY" \
             XDG_RUNTIME_DIR="$ORIGINAL_XDG_RUNTIME_DIR" \
             XAUTHORITY="$ORIGINAL_XAUTHORITY" \
             ORIGINAL_USER="$ORIGINAL_USER" \
             ORIGINAL_UID="$ORIGINAL_UID" \
             "$SCRIPT_TO_RUN"
+        
+        echo "Revoking root access to X server..."
         xhost -SI:localuser:root >/dev/null 2>&1
         
         exit $?
@@ -141,6 +156,7 @@ self_elevate() {
 
 # Function to clean up temporary files
 cleanup() {
+    echo "Cleaning up temporary files..."
     rm -rf "$TEMP_DIR"
     rm -f "$TEMP_SCRIPT"
 }
@@ -150,6 +166,7 @@ trap cleanup EXIT
 
 # Function to prepare thumbnails
 prepare_thumbnails() {
+    echo "Preparing thumbnails..."
     mkdir -p "$TEMP_DIR"
     chmod -R 755 "$TEMP_DIR"
     
@@ -218,9 +235,11 @@ test_theme() {
 
 # Main function
 main() {
+    echo "Starting main function..."
     # Elevate privileges if needed
     self_elevate
     
+    echo "Proceeding after privilege elevation..."
     # Detect distribution
     detect_distribution
     
@@ -315,4 +334,5 @@ main() {
 }
 
 # Execute main function
+echo "Starting script execution..."
 main
