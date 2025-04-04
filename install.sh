@@ -220,7 +220,6 @@ prepare_thumbnails() {
         fi
     done
 }
-
 # Function to apply selected theme
 apply_theme() {
     local theme="$1"
@@ -375,14 +374,15 @@ main() {
 # Execute script
 log "Starting script execution..."
 
-# Check if we're running from the hyprddm directory
-if [ "$(pwd)" != "$HYPRDDM_DIR" ]; then
-    log "Not running from $HYPRDDM_DIR. Downloading repository..."
+# Check if the repository already exists in HYPRDDM_DIR
+if [ ! -d "$HYPRDDM_DIR" ] || [ ! -f "$SCRIPT_PATH" ]; then
+    log "Repository not found in $HYPRDDM_DIR. Downloading repository..."
     download_repository
     log "Repository downloaded. Executing script from $HYPRDDM_DIR..."
     cd "$HYPRDDM_DIR"
     exec "$SCRIPT_PATH"
 else
-    log "Already in $HYPRDDM_DIR. Proceeding with installation..."
+    log "Repository already exists in $HYPRDDM_DIR. Proceeding with installation..."
+    cd "$HYPRDDM_DIR"
     main
 fi
