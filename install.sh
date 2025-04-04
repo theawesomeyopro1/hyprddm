@@ -65,17 +65,27 @@ check_and_install_theme() {
     # If the directory is empty or doesn't exist, proceed with installation
     echo "SDDM Astronaut Theme files are missing or directory is empty. Installing from nomadxxxx's fork..."
     sudo mkdir -p /usr/share/sddm/themes
-    sudo git clone -b master --depth 1 https://github.com/nomadxxxx/hyprddm.git "$THEMES_PATH"
+    echo "Cloning repository from https://github.com/nomadxxxx/hyprddm.git to $THEMES_PATH..."
+    sudo git clone -b master --depth 1 --progress https://github.com/nomadxxxx/hyprddm.git "$THEMES_PATH" 2>&1
+    
+    if [ $? -ne 0 ]; then
+        echo "Error: Failed to clone the repository. Please check your internet connection and try again."
+        exit 1
+    fi
     
     if [ -d "$THEMES_PATH/Fonts" ]; then
+        echo "Copying fonts from $THEMES_PATH/Fonts to $FONTS_PATH..."
         sudo mkdir -p "$FONTS_PATH"
         sudo cp -r "$THEMES_PATH/Fonts/"* "$FONTS_PATH/"
+        echo "Updating font cache..."
         sudo fc-cache -f
     fi
     
+    echo "Configuring SDDM theme..."
     echo "[Theme]
 Current=sddm-astronaut-theme" | sudo tee "$SDDM_CONF"
     
+    echo "Enabling virtual keyboard..."
     sudo mkdir -p /etc/sddm.conf.d/
     echo "[General]
 InputMethod=qtvirtualkeyboard" | sudo tee "$VIRTUAL_KBD_CONF"
@@ -165,11 +175,18 @@ prepare_thumbnails() {
         local_file="$THEMES_PATH/Backgrounds/$theme.png"
         preview_file="$TEMP_DIR/$theme-preview.png"
         if [ -f "$local_file" ]; then
+            echo "Generating thumbnail for $theme from local file $local_file..."
             magick "$local_file" -resize 200x150 "$preview_file"
         elif [ ! -f "$preview_file" ]; then
             url="${theme_previews[$theme]}"
-            curl -s -L "$url" -o "$preview_file"
-            magick "$preview_file" -resize 200x150 "$preview_file"
+            echo "Downloading preview for $theme from $url..."
+            curl -s -L --progress-bar "$url" -o "$preview_file"
+            if [ $? -ne 0 ]; then
+                echo "Warning: Failed to download preview for $theme from $url."
+            else
+                echo "Generating thumbnail for $theme..."
+                magick "$preview_file" -resize 200x150 "$preview_file"
+            fi
         fi
     done
 }
@@ -263,6 +280,7 @@ main() {
     yad_args+=("--button=Cancel:1")
     
     # Launch YAD GUI and capture output
+    echo "Launching theme selector GUI..."
     yad "${yad_args[@]}" --print-column=2 > /tmp/yad_output 2>&1
     RET=$?
     SELECTION=$(cat /tmp/yad_output | grep -v "gtk-" | tr -d '|' | head -n 1)
