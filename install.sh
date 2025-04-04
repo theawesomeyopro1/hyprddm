@@ -31,45 +31,56 @@ install_dependencies() {
     echo "Installing required dependencies..."
     case $DISTRO in
         arch)
-            sudo pacman -S --noconfirm --needed sddm qt6-svg qt6-virtualkeyboard qt6-multimedia-ffmpeg yad polkit xorg-xwayland imagemagick curl
+            sudo pacman -S --noconfirm --needed sddm qt6-svg qt6-virtualkeyboard qt6-multimedia-ffmpeg yad polkit xorg-xwayland imagemagick curl git
             ;;
         void)
-            sudo xbps-install -Sy sddm qt6-svg qt6-virtualkeyboard qt6-multimedia yad polkit xwayland imagemagick curl
+            sudo xbps-install -Sy sddm qt6-svg qt6-virtualkeyboard qt6-multimedia yad polkit xwayland imagemagick curl git
             ;;
         fedora)
-            sudo dnf install -y sddm qt6-qtsvg qt6-qtvirtualkeyboard qt6-qtmultimedia yad polkit xorg-x11-server-Xwayland imagemagick curl
+            sudo dnf install -y sddm qt6-qtsvg qt6-qtvirtualkeyboard qt6-qtmultimedia yad polkit xorg-x11-server-Xwayland imagemagick curl git
             ;;
         opensuse)
-            sudo zypper install -y sddm-qt6 libQt6Svg6 qt6-virtualkeyboard qt6-virtualkeyboard-imports qt6-multimedia yad polkit xorg-x11-server imagemagick curl
+            sudo zypper install -y sddm-qt6 libQt6Svg6 qt6-virtualkeyboard qt6-virtualkeyboard-imports qt6-multimedia yad polkit xorg-x11-server imagemagick curl git
             ;;
         *)
             echo "Unsupported distribution. Please install dependencies manually."
-            echo "Required packages: sddm, qt6-svg, qt6-virtualkeyboard, qt6-multimedia, yad, polkit, xwayland, imagemagick, curl"
+            echo "Required packages: sddm, qt6-svg, qt6-virtualkeyboard, qt6-multimedia, yad, polkit, xwayland, imagemagick, curl, git"
             ;;
     esac
 }
 
 # Function to check and install theme files
 check_and_install_theme() {
-    if [ ! -d "$THEMES_PATH" ] || [ ! -f "$THEMES_PATH/Themes/astronaut.conf" ]; then
-        echo "SDDM Astronaut Theme files are missing. Installing from nomadxxxx's fork..."
-        sudo git clone -b master --depth 1 https://github.com/nomadxxxx/hyprddm.git "$THEMES_PATH"
-        
-        if [ -d "$THEMES_PATH/Fonts" ]; then
-            sudo mkdir -p "$FONTS_PATH"
-            sudo cp -r "$THEMES_PATH/Fonts/"* "$FONTS_PATH/"
-            sudo fc-cache -f
-        fi
-        
-        echo "[Theme]
-Current=sddm-astronaut-theme" | sudo tee "$SDDM_CONF"
-        
-        sudo mkdir -p /etc/sddm.conf.d/
-        echo "[General]
-InputMethod=qtvirtualkeyboard" | sudo tee "$VIRTUAL_KBD_CONF"
-        
-        echo "SDDM Astronaut Theme installed successfully."
+    # Check if the themes directory exists and contains files
+    if [ -d "$THEMES_PATH" ] && [ -n "$(ls -A "$THEMES_PATH")" ]; then
+        echo "Warning: $THEMES_PATH already exists and contains files."
+        echo "This may indicate a previous installation of sddm-astronaut-theme."
+        echo "To avoid conflicts, the script will not overwrite the existing files."
+        echo "If you want to reinstall, please remove the directory manually with:"
+        echo "  sudo rm -rf $THEMES_PATH"
+        echo "Then rerun this script."
+        exit 1
     fi
+
+    # If the directory is empty or doesn't exist, proceed with installation
+    echo "SDDM Astronaut Theme files are missing or directory is empty. Installing from nomadxxxx's fork..."
+    sudo mkdir -p /usr/share/sddm/themes
+    sudo git clone -b master --depth 1 https://github.com/nomadxxxx/hyprddm.git "$THEMES_PATH"
+    
+    if [ -d "$THEMES_PATH/Fonts" ]; then
+        sudo mkdir -p "$FONTS_PATH"
+        sudo cp -r "$THEMES_PATH/Fonts/"* "$FONTS_PATH/"
+        sudo fc-cache -f
+    fi
+    
+    echo "[Theme]
+Current=sddm-astronaut-theme" | sudo tee "$SDDM_CONF"
+    
+    sudo mkdir -p /etc/sddm.conf.d/
+    echo "[General]
+InputMethod=qtvirtualkeyboard" | sudo tee "$VIRTUAL_KBD_CONF"
+    
+    echo "SDDM Astronaut Theme installed successfully."
 }
 
 # Function to handle self-elevation with proper display permissions
