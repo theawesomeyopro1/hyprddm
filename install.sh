@@ -39,16 +39,16 @@ install_dependencies() {
     log "Installing required dependencies..."
     case $DISTRO in
         arch)
-            sudo pacman -S --noconfirm --needed sddm qt6-svg qt6-virtualkeyboard qt6-multimedia-ffmpeg yad polkit xorg-xwayland imagemagick curl git
+            pkexec pacman -S --noconfirm --needed sddm qt6-svg qt6-virtualkeyboard qt6-multimedia-ffmpeg yad polkit xorg-xwayland imagemagick curl git
             ;;
         void)
-            sudo xbps-install -Sy sddm qt6-svg qt6-virtualkeyboard qt6-multimedia yad polkit xwayland imagemagick curl git
+            pkexec xbps-install -Sy sddm qt6-svg qt6-virtualkeyboard qt6-multimedia yad polkit xwayland imagemagick curl git
             ;;
         fedora)
-            sudo dnf install -y sddm qt6-qtsvg qt6-qtvirtualkeyboard qt6-qtmultimedia yad polkit xorg-x11-server-Xwayland imagemagick curl git
+            pkexec dnf install -y sddm qt6-qtsvg qt6-qtvirtualkeyboard qt6-qtmultimedia yad polkit xorg-x11-server-Xwayland imagemagick curl git
             ;;
         opensuse)
-            sudo zypper install -y sddm-qt6 libQt6Svg6 qt6-virtualkeyboard qt6-virtualkeyboard-imports qt6-multimedia yad polkit xorg-x11-server imagemagick curl git
+            pkexec zypper install -y sddm-qt6 libQt6Svg6 qt6-virtualkeyboard qt6-virtualkeyboard-imports qt6-multimedia yad polkit xorg-x11-server imagemagick curl git
             ;;
         *)
             log "Unsupported distribution. Please install dependencies manually."
@@ -59,10 +59,18 @@ install_dependencies() {
 
 # Function to check and install theme files
 check_and_install_theme() {
+    # Ensure the parent directory exists
+    log "Ensuring parent directory /usr/share/sddm/themes exists..."
+    pkexec mkdir -p /usr/share/sddm/themes
+    if [ $? -ne 0 ]; then
+        log "Error: Failed to create /usr/share/sddm/themes directory."
+        exit 1
+    fi
+
     # Check if the themes directory exists and contains files
     if [ -d "$THEMES_PATH" ] && [ -n "$(ls -A "$THEMES_PATH")" ]; then
         log "Warning: $THEMES_PATH already exists. Removing it to ensure a clean installation..."
-        sudo rm -rf "$THEMES_PATH"
+        pkexec rm -rf "$THEMES_PATH"
         if [ $? -ne 0 ]; then
             log "Error: Failed to remove $THEMES_PATH. Please check permissions and try again."
             exit 1
@@ -72,9 +80,8 @@ check_and_install_theme() {
 
     # Proceed with installation
     log "Installing SDDM Astronaut Theme from local repository..."
-    sudo mkdir -p /usr/share/sddm/themes
     log "Copying repository contents from $HYPRDDM_DIR to $THEMES_PATH..."
-    sudo cp -r "$HYPRDDM_DIR/"* "$THEMES_PATH/"
+    pkexec cp -r "$HYPRDDM_DIR/"* "$THEMES_PATH/"
     
     if [ $? -ne 0 ]; then
         log "Error: Failed to copy repository contents to $THEMES_PATH."
@@ -83,20 +90,20 @@ check_and_install_theme() {
     
     if [ -d "$THEMES_PATH/Fonts" ]; then
         log "Copying fonts from $THEMES_PATH/Fonts to $FONTS_PATH..."
-        sudo mkdir -p "$FONTS_PATH"
-        sudo cp -r "$THEMES_PATH/Fonts/"* "$FONTS_PATH/"
+        pkexec mkdir -p "$FONTS_PATH"
+        pkexec cp -r "$THEMES_PATH/Fonts/"* "$FONTS_PATH/"
         log "Updating font cache..."
-        sudo fc-cache -f
+        pkexec fc-cache -f
     fi
     
     log "Configuring SDDM theme..."
     echo "[Theme]
-Current=sddm-astronaut-theme" | sudo tee "$SDDM_CONF"
+Current=sddm-astronaut-theme" | pkexec tee "$SDDM_CONF"
     
     log "Enabling virtual keyboard..."
-    sudo mkdir -p /etc/sddm.conf.d/
+    pkexec mkdir -p /etc/sddm.conf.d/
     echo "[General]
-InputMethod=qtvirtualkeyboard" | sudo tee "$VIRTUAL_KBD_CONF"
+InputMethod=qtvirtualkeyboard" | pkexec tee "$VIRTUAL_KBD_CONF"
     
     log "SDDM Astronaut Theme installed successfully."
 }
@@ -124,8 +131,8 @@ self_elevate() {
         log "Granting root access to X server..."
         xhost +SI:localuser:root >/dev/null 2>&1
         
-        log "Executing sudo command to elevate privileges..."
-        sudo -E env DISPLAY="$ORIGINAL_DISPLAY" \
+        log "Executing pkexec to elevate privileges..."
+        pkexec env DISPLAY="$ORIGINAL_DISPLAY" \
             XDG_RUNTIME_DIR="$ORIGINAL_XDG_RUNTIME_DIR" \
             XAUTHORITY="$ORIGINAL_XAUTHORITY" \
             ORIGINAL_USER="$ORIGINAL_USER" \
@@ -202,9 +209,9 @@ prepare_thumbnails() {
 apply_theme() {
     local theme="$1"
     log "Applying theme: $theme"
-    sudo sed -i "s/ConfigFile=.*/ConfigFile=Themes\/$theme.conf/" "$METADATA_FILE"
+    pkexec sed -i "s/ConfigFile=.*/ConfigFile=Themes\/$theme.conf/" "$METADATA_FILE"
     echo "[Theme]
-Current=sddm-astronaut-theme" | sudo tee "$SDDM_CONF" > /dev/null
+Current=sddm-astronaut-theme" | pkexec tee "$SDDM_CONF" > /dev/null
     log "Theme applied successfully."
 }
 
@@ -213,13 +220,13 @@ test_theme() {
     local theme="$1"
     log "Testing theme: $theme"
     # Backup current metadata.desktop
-    sudo cp "$METADATA_FILE" "$METADATA_FILE.bak"
+    pkexec cp "$METADATA_FILE" "$METADATA_FILE.bak"
     # Set the theme for testing
-    sudo sed -i "s/ConfigFile=.*/ConfigFile=Themes\/$theme.conf/" "$METADATA_FILE"
+    pkexec sed -i "s/ConfigFile=.*/ConfigFile=Themes\/$theme.conf/" "$METADATA_FILE"
     # Run the test with full environment
-    sudo env DISPLAY="$DISPLAY" XAUTHORITY="$XAUTHORITY" XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" sddm-greeter-qt6 --test-mode --theme "$THEMES_PATH"
+    pkexec env DISPLAY="$DISPLAY" XAUTHORITY="$XAUTHORITY" XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" sddm-greeter-qt6 --test-mode --theme "$THEMES_PATH"
     # Restore original metadata.desktop
-    sudo mv "$METADATA_FILE.bak" "$METADATA_FILE"
+    pkexec mv "$METADATA_FILE.bak" "$METADATA_FILE"
     log "Test completed."
 }
 
@@ -263,8 +270,8 @@ main() {
     # Prepare thumbnails
     prepare_thumbnails
     
-    # List of available themes (new themes at the top)
-    THEMES=(
+    # List of available themes (new themes)
+        THEMES=(
         "chainsaw_fury"
         "cloud"
         "neon_jinx"
