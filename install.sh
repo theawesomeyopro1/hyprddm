@@ -71,7 +71,7 @@ check_and_install_theme() {
     fi
 
     # If the directory is empty or doesn't exist, proceed with installation
-    log "SDDM Astronaut Theme files are missing or directory is empty. Installing from nomadxxxx's fork..."
+    log "SDDM Astronaut Theme files are missing or directory is empty. Installing from local repository..."
     sudo mkdir -p /usr/share/sddm/themes
     log "Copying repository contents from $HYPRDDM_DIR to $THEMES_PATH..."
     sudo cp -r "$HYPRDDM_DIR/"* "$THEMES_PATH/"
