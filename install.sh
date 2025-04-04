@@ -9,7 +9,7 @@ METADATA_FILE="$THEMES_PATH/metadata.desktop"
 SDDM_CONF="/etc/sddm.conf"
 VIRTUAL_KBD_CONF="/etc/sddm.conf.d/virtualkbd.conf"
 TEMP_DIR="/tmp/sddm-previews-$USER"
-SCRIPT_PATH=$(realpath "$0")
+TEMP_SCRIPT="/tmp/install-hyprddm-$USER.sh"
 
 # Function to detect distribution
 detect_distribution() {
@@ -88,6 +88,15 @@ self_elevate() {
     if [ "$(id -u)" -ne 0 ]; then
         echo "Elevating privileges..."
         
+        # If the script is being piped (e.g., via curl | sh), save it to a temporary file
+        if [ ! -f "$0" ] || [ "$0" = "sh" ] || [ "$0" = "bash" ]; then
+            cat - > "$TEMP_SCRIPT"
+            chmod +x "$TEMP_SCRIPT"
+            SCRIPT_TO_RUN="$TEMP_SCRIPT"
+        else
+            SCRIPT_TO_RUN="$0"
+        fi
+
         export ORIGINAL_USER=$(whoami)
         export ORIGINAL_UID=$(id -u)
         export ORIGINAL_DISPLAY=${DISPLAY:-":1"}
@@ -102,12 +111,12 @@ self_elevate() {
         fi
         
         xhost +SI:localuser:root >/dev/null 2>&1
-        pkexec env DISPLAY="$ORIGINAL_DISPLAY" \
+        sudo -E env DISPLAY="$ORIGINAL_DISPLAY" \
             XDG_RUNTIME_DIR="$ORIGINAL_XDG_RUNTIME_DIR" \
             XAUTHORITY="$ORIGINAL_XAUTHORITY" \
             ORIGINAL_USER="$ORIGINAL_USER" \
             ORIGINAL_UID="$ORIGINAL_UID" \
-            "$SCRIPT_PATH"
+            "$SCRIPT_TO_RUN"
         xhost -SI:localuser:root >/dev/null 2>&1
         
         exit $?
@@ -123,6 +132,7 @@ self_elevate() {
 # Function to clean up temporary files
 cleanup() {
     rm -rf "$TEMP_DIR"
+    rm -f "$TEMP_SCRIPT"
 }
 
 # Register cleanup function to run on exit
