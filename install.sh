@@ -3,9 +3,9 @@
 # SDDM Astronaut Theme Selector with YAD GUI
 # A script to select and apply themes for SDDM using the sddm-astronaut-theme project.
 
-# Define paths using the original user's home directory
-ORIGINAL_HOME="$HOME"
-HYPRDDM_DIR="$ORIGINAL_HOME/hyprddm"
+# Define paths
+# Use ORIGINAL_HOME if set (after elevation), otherwise use HOME
+HYPRDDM_DIR="${ORIGINAL_HOME:-$HOME}/hyprddm"
 THEMES_PATH="/usr/share/sddm/themes/sddm-astronaut-theme"
 FONTS_PATH="/usr/share/fonts"
 METADATA_FILE="$THEMES_PATH/metadata.desktop"
@@ -125,6 +125,7 @@ self_elevate() {
         export ORIGINAL_USER=$(whoami)
         export ORIGINAL_UID=$(id -u)
         export ORIGINAL_HOME="$HOME"
+        export ORIGINAL_HYPRDDM_DIR="$HYPRDDM_DIR"
         export ORIGINAL_DISPLAY=${DISPLAY:-":1"}
         export ORIGINAL_XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-"/run/user/$ORIGINAL_UID"}
         export ORIGINAL_XAUTHORITY=${XAUTHORITY:-"$HOME/.Xauthority"}
@@ -148,6 +149,7 @@ self_elevate() {
             ORIGINAL_USER="$ORIGINAL_USER" \
             ORIGINAL_UID="$ORIGINAL_UID" \
             ORIGINAL_HOME="$ORIGINAL_HOME" \
+            ORIGINAL_HYPRDDM_DIR="$ORIGINAL_HYPRDDM_DIR" \
             "$SCRIPT_PATH"
         
         log "Revoking root access to X server..."
@@ -160,7 +162,7 @@ self_elevate() {
         export XDG_RUNTIME_DIR="$ORIGINAL_XDG_RUNTIME_DIR"
         export DISPLAY="$ORIGINAL_DISPLAY"
         export XAUTHORITY="$ORIGINAL_XAUTHORITY"
-        export HOME="$ORIGINAL_HOME"
+        export HYPRDDM_DIR="$ORIGINAL_HYPRDDM_DIR"
     fi
 }
 
@@ -246,18 +248,19 @@ test_theme() {
 
 # Function to download the repository
 download_repository() {
-    log "Checking for existing hyprddm directory in $ORIGINAL_HOME..."
+    log "Checking for existing hyprddm directory in ${ORIGINAL_HOME:-$HOME}..."
     if [ -d "$HYPRDDM_DIR" ]; then
         log "Directory $HYPRDDM_DIR already exists. Removing it to ensure a clean download..."
         rm -rf "$HYPRDDM_DIR"
     fi
 
-    log "Creating hyprddm directory in $ORIGINAL_HOME..."
+    log "Creating hyprddm directory in ${ORIGINAL_HOME:-$HOME}..."
     mkdir -p "$HYPRDDM_DIR"
 
     log "Cloning repository from https://github.com/nomadxxxx/hyprddm.git to $HYPRDDM_DIR..."
     git clone -b master --depth 1 --progress https://github.com/nomadxxxx/hyprddm.git "$HYPRDDM_DIR" 2>&1
-        if [ $? -ne 0 ]; then
+    
+    if [ $? -ne 0 ]; then
         log "Error: Failed to clone the repository. Please check your internet connection and try again."
         exit 1
     fi
@@ -340,29 +343,30 @@ main() {
     SELECTION=$(cat /tmp/yad_output | grep -v "gtk-" | tr -d '|' | head -n 1)
     
     case $RET in
-        0) # Apply
+        0)  # Apply
             if [ -n "$SELECTION" ]; then
                 apply_theme "$SELECTION"
                 yad --title="Success" \
                     --text="Theme '$SELECTION' applied successfully!" \
                     --button="OK:0" \
-                    --width=300 --height=100 \
+                    --width=300 \
+                    --height=100 \
                     --center
             else
                 log "Error: No theme selected for Apply."
             fi
             ;;
-        2) # Test
+        2)  # Test
             if [ -n "$SELECTION" ]; then
                 test_theme "$SELECTION"
             else
                 log "Error: No theme selected for Test."
             fi
             ;;
-        1|252) # Cancel or closed
+        1|252)  # Cancel or closed
             log "Operation cancelled."
             ;;
-        *)
+        *)  # Unexpected exit code
             log "Error: Unexpected exit code $RET from YAD."
             ;;
     esac
