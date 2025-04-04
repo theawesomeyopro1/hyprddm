@@ -61,17 +61,17 @@ install_dependencies() {
 check_and_install_theme() {
     # Check if the themes directory exists and contains files
     if [ -d "$THEMES_PATH" ] && [ -n "$(ls -A "$THEMES_PATH")" ]; then
-        log "Warning: $THEMES_PATH already exists and contains files."
-        log "This may indicate a previous installation of sddm-astronaut-theme."
-        log "To avoid conflicts, the script will not overwrite the existing files."
-        log "If you want to reinstall, please remove the directory manually with:"
-        log "  sudo rm -rf $THEMES_PATH"
-        log "Then rerun this script."
-        exit 1
+        log "Warning: $THEMES_PATH already exists. Removing it to ensure a clean installation..."
+        sudo rm -rf "$THEMES_PATH"
+        if [ $? -ne 0 ]; then
+            log "Error: Failed to remove $THEMES_PATH. Please check permissions and try again."
+            exit 1
+        fi
+        log "Successfully removed $THEMES_PATH."
     fi
 
-    # If the directory is empty or doesn't exist, proceed with installation
-    log "SDDM Astronaut Theme files are missing or directory is empty. Installing from local repository..."
+    # Proceed with installation
+    log "Installing SDDM Astronaut Theme from local repository..."
     sudo mkdir -p /usr/share/sddm/themes
     log "Copying repository contents from $HYPRDDM_DIR to $THEMES_PATH..."
     sudo cp -r "$HYPRDDM_DIR/"* "$THEMES_PATH/"
