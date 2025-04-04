@@ -91,6 +91,7 @@ Pane {
             anchors.right: config.FormPosition == "right" ? parent.right : undefined
             z: 1
         }
+
         Loader {
             id: virtualKeyboard
             source: "Components/VirtualKeyboard.qml"
@@ -120,7 +121,7 @@ Pane {
                     name: "hidden"
                     PropertyChanges {
                         target: virtualKeyboard
-                        y: root.height - root.height / 4
+                        y: root.height - root.height/4
                         opacity: 0
                     }
                 }
@@ -178,14 +179,7 @@ Pane {
                 }
             ]
         }
-
-        // Weather Widget (config-controlled)
-        Components.WeatherWidget {
-            id: weatherWidget
-            z: config.WeatherWidgetZIndex || 2 // Ensure it's above background layers but below interactive elements like login form.
-            visible: config.WeatherWidgetEnabled === "true"
-        }
-
+        
         Image {
             id: backgroundPlaceholderImage
 
@@ -202,72 +196,54 @@ Pane {
                 
                 videoOutput: videoOutput
                 autoPlay: true
-                playbackRate:
-                    config.BackgroundSpeed == "" ? 1.0 : config.BackgroundSpeed
-
-                loops:
-                    -1
-
-                onPlayingChanged:
+                playbackRate: config.BackgroundSpeed == "" ? 1.0 : config.BackgroundSpeed
+                loops: -1
+                onPlayingChanged: {
                     console.log("Video started.")
                     backgroundPlaceholderImage.visible = false;
+                }
             }
 
             VideoOutput {
                 id: videoOutput
-
-                fillMode: config.CropBackground == "true" ?
-                          VideoOutput.PreserveAspectCrop :
-                          VideoOutput.PreserveAspectFit
-
+                
+                fillMode: config.CropBackground == "true" ? VideoOutput.PreserveAspectCrop : VideoOutput.PreserveAspectFit
                 anchors.fill: parent
             }
 
             height: parent.height
-
-            width: config.HaveFormBackground == "true" && 
-                   config.FormPosition != "center" && 
-                   config.PartialBlur != "true" ? 
-                   parent.width - formBackground.width : parent.width
-
+            width: config.HaveFormBackground == "true" && config.FormPosition != "center" && config.PartialBlur != "true" ? parent.width - formBackground.width : parent.width
             anchors.left: leftleft || leftcenter ? formBackground.right : undefined
             anchors.right: rightright || rightcenter ? formBackground.left : undefined
 
-            horizontalAlignment:
-                config.BackgroundHorizontalAlignment == "left" ?
-                Image.AlignLeft :
-                config.BackgroundHorizontalAlignment == "right" ?
-                Image.AlignRight : Image.AlignHCenter
+            horizontalAlignment: config.BackgroundHorizontalAlignment == "left" ?
+                                 Image.AlignLeft :
+                                 config.BackgroundHorizontalAlignment == "right" ?
+                                 Image.AlignRight : Image.AlignHCenter
 
-            verticalAlignment:
-                config.BackgroundVerticalAlignment == "top" ?
-                Image.AlignTop :
-                config.BackgroundVerticalAlignment == "bottom" ?
-                Image.AlignBottom : Image.AlignVCenter
+            verticalAlignment: config.BackgroundVerticalAlignment == "top" ?
+                               Image.AlignTop :
+                               config.BackgroundVerticalAlignment == "bottom" ?
+                               Image.AlignBottom : Image.AlignVCenter
 
-            speed:
-                config.BackgroundSpeed == "" ? 1.0 : config.BackgroundSpeed
-
-            paused:
-                config.PauseBackground == "true" ? 1 : 0
-
-            fillMode:
-                config.CropBackground == "true" ? Image.PreserveAspectCrop : Image.PreserveAspectFit
-
+            speed: config.BackgroundSpeed == "" ? 1.0 : config.BackgroundSpeed
+            paused: config.PauseBackground == "true" ? 1 : 0
+            fillMode: config.CropBackground == "true" ? Image.PreserveAspectCrop : Image.PreserveAspectFit
             asynchronous: true
             cache: true
             clip: true
             mipmap: true
 
-            Component.onCompleted: {
+            Component.onCompleted:{
                 var fileType = config.Background.substring(config.Background.lastIndexOf(".") + 1)
                 const videoFileTypes = ["avi", "mp4", "mov", "mkv", "m4v", "webm"];
                 if (videoFileTypes.includes(fileType)) {
                     backgroundPlaceholderImage.visible = true;
                     player.source = Qt.resolvedUrl(config.Background)
                     player.play();
-                } else {
-                    backgroundImage.source = config.background || config.Background;
+                }
+                else{
+                    backgroundImage.source = config.background || config.Background
                 }
             }
         }
@@ -285,7 +261,7 @@ Pane {
             anchors.centerIn: form
 
             sourceItem: backgroundImage
-            sourceRect: Qt.rect(x, y, width, height)
+            sourceRect: Qt.rect(x,y,width,height)
             visible: config.FullBlur == "true" || config.PartialBlur == "true" ? true : false
         }
 
@@ -294,10 +270,11 @@ Pane {
             
             height: parent.height
 
-            width: (config.FullBlur == "true" && config.PartialBlur == "false" && config.FormPosition != "center") ? 
-                   parent.width - formBackground.width : 
-                   config.FullBlur == "true" ? parent.width : form.width 
+            // width: config.FullBlur == "true" ? parent.width : form.width
+            // anchors.centerIn: config.FullBlur == "true" ? parent : form
 
+            // This solves problem when FullBlur and HaveFormBackground is set to true but PartialBlur is false and FormPosition isn't center.
+            width: (config.FullBlur == "true" && config.PartialBlur == "false" && config.FormPosition != "center" ) ? parent.width - formBackground.width : config.FullBlur == "true" ? parent.width : form.width 
             anchors.centerIn: config.FullBlur == "true" ? backgroundImage : form
 
             source: config.FullBlur == "true" ? backgroundImage : blurMask
@@ -309,138 +286,3 @@ Pane {
         }
     }
 }
-    Image {
-        id: backgroundPlaceholderImage
-
-        z: 10
-        source: config.BackgroundPlaceholder
-        visible: false
-    }
-
-    AnimatedImage {
-        id: backgroundImage
-
-        MediaPlayer {
-            id: player
-
-            videoOutput: videoOutput
-            autoPlay: true
-            playbackRate:
-                config.BackgroundSpeed == "" ? 1.0 : config.BackgroundSpeed
-
-            loops:
-                -1
-
-            onPlayingChanged:
-                console.log("Video started.")
-                backgroundPlaceholderImage.visible = false;
-        }
-
-        VideoOutput {
-            id:
-              videoOutput
-
-              fillMode:
-                  config.CropBackground == "true" ?
-                  VideoOutput.PreserveAspectCrop :
-                  VideoOutput.PreserveAspectFit
-
-              anchors.fill:
-                  parent
-        }
-
-        height: parent.height
-
-        width: config.HaveFormBackground == "true" && 
-               config.FormPosition != "center" && 
-               config.PartialBlur != "true" ? 
-               parent.width - formBackground.width : parent.width
-
-        anchors.left: leftleft || leftcenter ? formBackground.right : undefined
-        anchors.right: rightright || rightcenter ? formBackground.left : undefined
-
-        horizontalAlignment:
-            config.BackgroundHorizontalAlignment == "left" ?
-            Image.AlignLeft :
-            config.BackgroundHorizontalAlignment == "right" ?
-            Image.AlignRight : Image.AlignHCenter
-
-        verticalAlignment:
-            config.BackgroundVerticalAlignment == "top" ?
-            Image.AlignTop :
-            config.BackgroundVerticalAlignment == "bottom" ?
-            Image.AlignBottom : Image.AlignVCenter
-
-        speed:
-            config.BackgroundSpeed == "" ? 1.0 : config.BackgroundSpeed
-
-        paused:
-            config.PauseBackground == "true" ? 1 : 0
-
-        fillMode:
-            config.CropBackground == "true" ? Image.PreserveAspectCrop : Image.PreserveAspectFit
-
-        asynchronous: true
-        cache: true
-        clip: true
-        mipmap: true
-
-        Component.onCompleted: {
-            var fileType = config.Background.substring(config.Background.lastIndexOf(".") + 1)
-            const videoFileTypes = ["avi", "mp4", "mov", "mkv", "m4v", "webm"];
-            if (videoFileTypes.includes(fileType)) {
-                backgroundPlaceholderImage.visible = true;
-                player.source = Qt.resolvedUrl(config.Background)
-                player.play();
-            } else {
-                backgroundImage.source = config.background || config.Background;
-            }
-        }
-    }
-
-    MouseArea {
-        anchors.fill: backgroundImage
-        onClicked: parent.forceActiveFocus()
-    }
-
-    ShaderEffectSource {
-        id: blurMask
-
-        height: parent.height
-        width: form.width
-        anchors.centerIn: form
-
-        sourceItem: backgroundImage
-        sourceRect: Qt.rect(x, y, width, height)
-        visible: config.FullBlur == "true" || config.PartialBlur == "true" ? true : false
-    }
-
-    MultiEffect {
-    id: blur
-    
-    // Height
-    height: parent.height
-
-    // Width logic (valid)
-    width: (config.FullBlur === "true" && 
-            config.PartialBlur === "false" && 
-            config.FormPosition !== "center") ? 
-           parent.width - formBackground.width : 
-           (config.FullBlur === "true" ? parent.width : form.width)
-
-    // Anchors (valid)
-    anchors.centerIn: config.FullBlur === "true" ? backgroundImage : form
-
-    // Source (valid)
-    source: config.FullBlur === "true" ? backgroundImage : blurMask
-
-    // Blur properties (improved)
-    blurEnabled: true
-    autoPaddingEnabled: false
-    blur: config.Blur === "" ? 2.0 : parseFloat(config.Blur)
-    blurMax: config.BlurMax === "" ? 48 : parseInt(config.BlurMax)
-
-    // Visibility (valid)
-    visible: config.FullBlur === "true" || config.PartialBlur === "true"
-}
-
