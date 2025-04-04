@@ -87,9 +87,9 @@ InputMethod=qtvirtualkeyboard" | sudo tee "$VIRTUAL_KBD_CONF"
 self_elevate() {
     if [ "$(id -u)" -ne 0 ]; then
         echo "Elevating privileges..."
-        
+
         # If the script is being piped (e.g., via curl | sh), save it to a temporary file
-        if [ ! -f "$0" ] || [ "$0" = "sh" ] || [ "$0" = "bash" ]; then
+        if [ ! -f "$0" ] || [ "$0" = "sh" ] || [ "$0" = "bash" ] || [[ "$0" =~ ^/.*sh$ ]]; then
             cat - > "$TEMP_SCRIPT"
             chmod +x "$TEMP_SCRIPT"
             SCRIPT_TO_RUN="$TEMP_SCRIPT"
