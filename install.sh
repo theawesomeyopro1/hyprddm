@@ -3,16 +3,20 @@
 # SDDM Astronaut Theme Selector with YAD GUI
 # A script to select and apply themes for SDDM using the sddm-astronaut-theme project.
 
+# Define paths
+HYPRDDM_DIR="$HOME/hyprddm"
 THEMES_PATH="/usr/share/sddm/themes/sddm-astronaut-theme"
 FONTS_PATH="/usr/share/fonts"
 METADATA_FILE="$THEMES_PATH/metadata.desktop"
 SDDM_CONF="/etc/sddm.conf"
 VIRTUAL_KBD_CONF="/etc/sddm.conf.d/virtualkbd.conf"
 TEMP_DIR="/tmp/sddm-previews-$USER"
-TEMP_SCRIPT="/tmp/install-hyprddm-$USER.sh"
+SCRIPT_PATH="$HYPRDDM_DIR/install.sh"
 
-# Enable debug output
-set -x
+# Function to log messages without debug clutter
+log() {
+    echo "$1"
+}
 
 # Function to detect distribution
 detect_distribution() {
@@ -27,12 +31,12 @@ detect_distribution() {
     else
         DISTRO="unknown"
     fi
-    echo "Detected distribution: $DISTRO"
+    log "Detected distribution: $DISTRO"
 }
 
 # Function to install dependencies
 install_dependencies() {
-    echo "Installing required dependencies..."
+    log "Installing required dependencies..."
     case $DISTRO in
         arch)
             sudo pacman -S --noconfirm --needed sddm qt6-svg qt6-virtualkeyboard qt6-multimedia-ffmpeg yad polkit xorg-xwayland imagemagick curl git
@@ -47,8 +51,8 @@ install_dependencies() {
             sudo zypper install -y sddm-qt6 libQt6Svg6 qt6-virtualkeyboard qt6-virtualkeyboard-imports qt6-multimedia yad polkit xorg-x11-server imagemagick curl git
             ;;
         *)
-            echo "Unsupported distribution. Please install dependencies manually."
-            echo "Required packages: sddm, qt6-svg, qt6-virtualkeyboard, qt6-multimedia, yad, polkit, xwayland, imagemagick, curl, git"
+            log "Unsupported distribution. Please install dependencies manually."
+            log "Required packages: sddm, qt6-svg, qt6-virtualkeyboard, qt6-multimedia, yad, polkit, xwayland, imagemagick, curl, git"
             ;;
     esac
 }
@@ -57,63 +61,50 @@ install_dependencies() {
 check_and_install_theme() {
     # Check if the themes directory exists and contains files
     if [ -d "$THEMES_PATH" ] && [ -n "$(ls -A "$THEMES_PATH")" ]; then
-        echo "Warning: $THEMES_PATH already exists and contains files."
-        echo "This may indicate a previous installation of sddm-astronaut-theme."
-        echo "To avoid conflicts, the script will not overwrite the existing files."
-        echo "If you want to reinstall, please remove the directory manually with:"
-        echo "  sudo rm -rf $THEMES_PATH"
-        echo "Then rerun this script."
+        log "Warning: $THEMES_PATH already exists and contains files."
+        log "This may indicate a previous installation of sddm-astronaut-theme."
+        log "To avoid conflicts, the script will not overwrite the existing files."
+        log "If you want to reinstall, please remove the directory manually with:"
+        log "  sudo rm -rf $THEMES_PATH"
+        log "Then rerun this script."
         exit 1
     fi
 
     # If the directory is empty or doesn't exist, proceed with installation
-    echo "SDDM Astronaut Theme files are missing or directory is empty. Installing from nomadxxxx's fork..."
+    log "SDDM Astronaut Theme files are missing or directory is empty. Installing from nomadxxxx's fork..."
     sudo mkdir -p /usr/share/sddm/themes
-    echo "Cloning repository from https://github.com/nomadxxxx/hyprddm.git to $THEMES_PATH..."
-    sudo git clone -b master --depth 1 --progress https://github.com/nomadxxxx/hyprddm.git "$THEMES_PATH" 2>&1
+    log "Copying repository contents from $HYPRDDM_DIR to $THEMES_PATH..."
+    sudo cp -r "$HYPRDDM_DIR/"* "$THEMES_PATH/"
     
     if [ $? -ne 0 ]; then
-        echo "Error: Failed to clone the repository. Please check your internet connection and try again."
+        log "Error: Failed to copy repository contents to $THEMES_PATH."
         exit 1
     fi
     
     if [ -d "$THEMES_PATH/Fonts" ]; then
-        echo "Copying fonts from $THEMES_PATH/Fonts to $FONTS_PATH..."
+        log "Copying fonts from $THEMES_PATH/Fonts to $FONTS_PATH..."
         sudo mkdir -p "$FONTS_PATH"
         sudo cp -r "$THEMES_PATH/Fonts/"* "$FONTS_PATH/"
-        echo "Updating font cache..."
+        log "Updating font cache..."
         sudo fc-cache -f
     fi
     
-    echo "Configuring SDDM theme..."
+    log "Configuring SDDM theme..."
     echo "[Theme]
 Current=sddm-astronaut-theme" | sudo tee "$SDDM_CONF"
     
-    echo "Enabling virtual keyboard..."
+    log "Enabling virtual keyboard..."
     sudo mkdir -p /etc/sddm.conf.d/
     echo "[General]
 InputMethod=qtvirtualkeyboard" | sudo tee "$VIRTUAL_KBD_CONF"
     
-    echo "SDDM Astronaut Theme installed successfully."
+    log "SDDM Astronaut Theme installed successfully."
 }
 
 # Function to handle self-elevation with proper display permissions
 self_elevate() {
     if [ "$(id -u)" -ne 0 ]; then
-        echo "Elevating privileges..."
-        echo "Current shell: $0"
-        echo "Checking if script is piped..."
-
-        # If the script is being piped (e.g., via curl | sh), save it to a temporary file
-        if [ ! -f "$0" ] || [ "$0" = "sh" ] || [ "$0" = "bash" ] || [[ "$0" =~ ^/.*sh$ ]]; then
-            echo "Script is being piped. Saving to temporary file: $TEMP_SCRIPT"
-            cat - > "$TEMP_SCRIPT"
-            chmod +x "$TEMP_SCRIPT"
-            SCRIPT_TO_RUN="$TEMP_SCRIPT"
-        else
-            echo "Script is not piped. Using original path: $0"
-            SCRIPT_TO_RUN="$0"
-        fi
+        log "Elevating privileges..."
 
         export ORIGINAL_USER=$(whoami)
         export ORIGINAL_UID=$(id -u)
@@ -121,27 +112,27 @@ self_elevate() {
         export ORIGINAL_XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-"/run/user/$ORIGINAL_UID"}
         export ORIGINAL_XAUTHORITY=${XAUTHORITY:-"$HOME/.Xauthority"}
         
-        echo "Setting up Xauthority..."
+        log "Setting up Xauthority..."
         [ -f "$ORIGINAL_XAUTHORITY" ] || touch "$ORIGINAL_XAUTHORITY"
         xauth generate "$ORIGINAL_DISPLAY" . trusted 2>/dev/null
         
-        echo "Testing XWayland access..."
+        log "Testing XWayland access..."
         if ! DISPLAY="$ORIGINAL_DISPLAY" XDG_RUNTIME_DIR="$ORIGINAL_XDG_RUNTIME_DIR" XAUTHORITY="$ORIGINAL_XAUTHORITY" yad --title="Test" --text="Pre-elevation test" --timeout=1 2>/dev/null; then
-            echo "Warning: Pre-elevation XWayland test failed. Display may not work correctly."
+            log "Warning: Pre-elevation XWayland test failed. Display may not work correctly."
         fi
         
-        echo "Granting root access to X server..."
+        log "Granting root access to X server..."
         xhost +SI:localuser:root >/dev/null 2>&1
         
-        echo "Executing sudo command to elevate privileges..."
+        log "Executing sudo command to elevate privileges..."
         sudo -E env DISPLAY="$ORIGINAL_DISPLAY" \
             XDG_RUNTIME_DIR="$ORIGINAL_XDG_RUNTIME_DIR" \
             XAUTHORITY="$ORIGINAL_XAUTHORITY" \
             ORIGINAL_USER="$ORIGINAL_USER" \
             ORIGINAL_UID="$ORIGINAL_UID" \
-            "$SCRIPT_TO_RUN"
+            "$SCRIPT_PATH"
         
-        echo "Revoking root access to X server..."
+        log "Revoking root access to X server..."
         xhost -SI:localuser:root >/dev/null 2>&1
         
         exit $?
@@ -156,9 +147,8 @@ self_elevate() {
 
 # Function to clean up temporary files
 cleanup() {
-    echo "Cleaning up temporary files..."
+    log "Cleaning up temporary files..."
     rm -rf "$TEMP_DIR"
-    rm -f "$TEMP_SCRIPT"
 }
 
 # Register cleanup function to run on exit
@@ -166,7 +156,7 @@ trap cleanup EXIT
 
 # Function to prepare thumbnails
 prepare_thumbnails() {
-    echo "Preparing thumbnails..."
+    log "Preparing thumbnails..."
     mkdir -p "$TEMP_DIR"
     chmod -R 755 "$TEMP_DIR"
     
@@ -192,16 +182,16 @@ prepare_thumbnails() {
         local_file="$THEMES_PATH/Backgrounds/$theme.png"
         preview_file="$TEMP_DIR/$theme-preview.png"
         if [ -f "$local_file" ]; then
-            echo "Generating thumbnail for $theme from local file $local_file..."
+            log "Generating thumbnail for $theme from local file $local_file..."
             magick "$local_file" -resize 200x150 "$preview_file"
         elif [ ! -f "$preview_file" ]; then
             url="${theme_previews[$theme]}"
-            echo "Downloading preview for $theme from $url..."
+            log "Downloading preview for $theme from $url..."
             curl -s -L --progress-bar "$url" -o "$preview_file"
             if [ $? -ne 0 ]; then
-                echo "Warning: Failed to download preview for $theme from $url."
+                log "Warning: Failed to download preview for $theme from $url."
             else
-                echo "Generating thumbnail for $theme..."
+                log "Generating thumbnail for $theme..."
                 magick "$preview_file" -resize 200x150 "$preview_file"
             fi
         fi
@@ -211,17 +201,17 @@ prepare_thumbnails() {
 # Function to apply selected theme
 apply_theme() {
     local theme="$1"
-    echo "Applying theme: $theme"
+    log "Applying theme: $theme"
     sudo sed -i "s/ConfigFile=.*/ConfigFile=Themes\/$theme.conf/" "$METADATA_FILE"
     echo "[Theme]
 Current=sddm-astronaut-theme" | sudo tee "$SDDM_CONF" > /dev/null
-    echo "Theme applied successfully."
+    log "Theme applied successfully."
 }
 
 # Function to test theme
 test_theme() {
     local theme="$1"
-    echo "Testing theme: $theme"
+    log "Testing theme: $theme"
     # Backup current metadata.desktop
     sudo cp "$METADATA_FILE" "$METADATA_FILE.bak"
     # Set the theme for testing
@@ -230,16 +220,39 @@ test_theme() {
     sudo env DISPLAY="$DISPLAY" XAUTHORITY="$XAUTHORITY" XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" sddm-greeter-qt6 --test-mode --theme "$THEMES_PATH"
     # Restore original metadata.desktop
     sudo mv "$METADATA_FILE.bak" "$METADATA_FILE"
-    echo "Test completed."
+    log "Test completed."
+}
+
+# Function to download the repository
+download_repository() {
+    log "Checking for existing hyprddm directory in $HOME..."
+    if [ -d "$HYPRDDM_DIR" ]; then
+        log "Directory $HYPRDDM_DIR already exists. Removing it to ensure a clean download..."
+        rm -rf "$HYPRDDM_DIR"
+    fi
+
+    log "Creating hyprddm directory in $HOME..."
+    mkdir -p "$HYPRDDM_DIR"
+
+    log "Cloning repository from https://github.com/nomadxxxx/hyprddm.git to $HYPRDDM_DIR..."
+    git clone -b master --depth 1 --progress https://github.com/nomadxxxx/hyprddm.git "$HYPRDDM_DIR" 2>&1
+    
+    if [ $? -ne 0 ]; then
+        log "Error: Failed to clone the repository. Please check your internet connection and try again."
+        exit 1
+    fi
+
+    log "Setting execute permissions on $SCRIPT_PATH..."
+    chmod +x "$SCRIPT_PATH"
 }
 
 # Main function
 main() {
-    echo "Starting main function..."
+    log "Starting main function..."
     # Elevate privileges if needed
     self_elevate
     
-    echo "Proceeding after privilege elevation..."
+    log "Proceeding after privilege elevation..."
     # Detect distribution
     detect_distribution
     
@@ -299,7 +312,7 @@ main() {
     yad_args+=("--button=Cancel:1")
     
     # Launch YAD GUI and capture output
-    echo "Launching theme selector GUI..."
+    log "Launching theme selector GUI..."
     yad "${yad_args[@]}" --print-column=2 > /tmp/yad_output 2>&1
     RET=$?
     SELECTION=$(cat /tmp/yad_output | grep -v "gtk-" | tr -d '|' | head -n 1)
@@ -314,25 +327,36 @@ main() {
                     --width=300 --height=100 \
                     --center
             else
-                echo "Error: No theme selected for Apply."
+                log "Error: No theme selected for Apply."
             fi
             ;;
         2) # Test
             if [ -n "$SELECTION" ]; then
                 test_theme "$SELECTION"
             else
-                echo "Error: No theme selected for Test."
+                log "Error: No theme selected for Test."
             fi
             ;;
         1|252) # Cancel or closed
-            echo "Operation cancelled."
+            log "Operation cancelled."
             ;;
         *)
-            echo "Error: Unexpected exit code $RET from YAD."
+            log "Error: Unexpected exit code $RET from YAD."
             ;;
     esac
 }
 
-# Execute main function
-echo "Starting script execution..."
-main
+# Execute script
+log "Starting script execution..."
+
+# Check if we're running from the hyprddm directory
+if [ "$(pwd)" != "$HYPRDDM_DIR" ]; then
+    log "Not running from $HYPRDDM_DIR. Downloading repository..."
+    download_repository
+    log "Repository downloaded. Executing script from $HYPRDDM_DIR..."
+    cd "$HYPRDDM_DIR"
+    exec "$SCRIPT_PATH"
+else
+    log "Already in $HYPRDDM_DIR. Proceeding with installation..."
+    main
+fi
