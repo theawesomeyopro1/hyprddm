@@ -226,65 +226,73 @@ test_theme() {
     local theme="$1"
     log "Testing theme: $theme"
 
-    # Perform file operations as root in a single pkexec call
-    pkexec bash -c "
-        log() { echo \"\$1\"; }
-        # Backup current metadata.desktop
-        log \"Backing up $METADATA_FILE to $METADATA_FILE.bak...\"
-        cp \"$METADATA_FILE\" \"$METADATA_FILE.bak\"
-        if [ \$? -ne 0 ]; then
-            log \"Error: Failed to back up $METADATA_FILE.\"
-            exit 1
-        fi
+    # Create a temporary working directory
+    local temp_metadata_dir="$TEMP_DIR/metadata"
+    mkdir -p "$temp_metadata_dir"
+    local temp_metadata="$temp_metadata_dir/metadata.desktop"
+    local temp_metadata_bak="$temp_metadata_dir/metadata.desktop.bak"
 
-        # Set the theme for testing
-        log \"Setting theme $theme in $METADATA_FILE...\"
-        sed -i \"s/ConfigFile=.*/ConfigFile=Themes\/$theme.conf/\" \"$METADATA_FILE\"
-        if [ \$? -ne 0 ]; then
-            log \"Error: Failed to modify $METADATA_FILE for testing.\"
-            mv \"$METADATA_FILE.bak\" \"$METADATA_FILE\" 2>/dev/null
-            exit 1
-        fi
-    "
+    # Copy the metadata.desktop file to the temporary directory
+    log "Copying $METADATA_FILE to temporary location for modification..."
+    pkexec cp "$METADATA_FILE" "$temp_metadata"
     if [ $? -ne 0 ]; then
-        log "Error: Failed to prepare theme for testing."
+        log "Error: Failed to copy $METADATA_FILE to $temp_metadata."
         return 1
     fi
 
-    # Run the test as the original user
+    # Back up the temporary metadata file and modify it
+    log "Backing up temporary metadata file to $temp_metadata_bak..."
+    cp "$temp_metadata" "$temp_metadata_bak"
+    if [ $? -ne 0 ]; then
+        log "Error: Failed to back up $temp_metadata to $temp_metadata_bak."
+        return 1
+    fi
+
+    log "Setting theme $theme in temporary metadata file..."
+    sed -i "s/ConfigFile=.*/ConfigFile=Themes\/$theme.conf/" "$temp_metadata"
+    if [ $? -ne 0 ]; then
+        log "Error: Failed to modify $temp_metadata for testing."
+        return 1
+    fi
+
+    # Copy the modified metadata file back to the original location
+    log "Copying modified metadata file back to $METADATA_FILE..."
+    pkexec cp "$temp_metadata" "$METADATA_FILE"
+    if [ $? -ne 0 ]; then
+        log "Error: Failed to copy modified $temp_metadata to $METADATA_FILE."
+        return 1
+    fi
+
+    # Run the test as the original user with proper environment variables
     log "Running SDDM greeter test as user $ORIGINAL_USER..."
     if [ -n "$ORIGINAL_UID" ] && [ "$ORIGINAL_UID" != "0" ]; then
-        # Use su to switch to the original user and run the test
-        su - "$ORIGINAL_USER" -c "sddm-greeter-qt6 --test-mode --theme \"$THEMES_PATH\"" 2>&1
+        # Use runuser to run the command as the original user without a password prompt
+        # Pass DISPLAY and XAUTHORITY to ensure X server access
+        env DISPLAY="$DISPLAY" XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}" \
+            runuser -u "$ORIGINAL_USER" -- sddm-greeter-qt6 --test-mode --theme "$THEMES_PATH" 2>&1
         TEST_RET=$?
     else
         log "Error: Original user not set or is root. Cannot run test as original user."
         TEST_RET=1
     fi
 
-    # Restore the original metadata.desktop as root
-    pkexec bash -c "
-        log() { echo \"\$1\"; }
-        log \"Restoring original $METADATA_FILE...\"
-        mv \"$METADATA_FILE.bak\" \"$METADATA_FILE\"
-        if [ \$? -ne 0 ]; then
-            log \"Error: Failed to restore $METADATA_FILE.\"
-            exit 1
-        fi
-    "
+    # Restore the original metadata.desktop file
+    log "Restoring original $METADATA_FILE..."
+    pkexec cp "$temp_metadata_bak" "$METADATA_FILE"
     if [ $? -ne 0 ]; then
-        log "Error: Failed to restore original $METADATA_FILE after testing."
+        log "Error: Failed to restore $METADATA_FILE from $temp_metadata_bak."
         return 1
     fi
 
     # Check the result of the test
     if [ $TEST_RET -ne 0 ]; then
         log "Warning: SDDM greeter test failed. This may be due to missing dependencies or X server issues."
+        log "DISPLAY=$DISPLAY, XAUTHORITY=$XAUTHORITY"
         yad --title="Test Failed" \
-            --text="Failed to test theme '$theme'. Ensure all dependencies are installed and an X server is running." \
+            --text="Failed to test theme '$theme'. Ensure an X server or Wayland with XWayland is running.\nDISPLAY=$DISPLAY\nXAUTHORITY=$XAUTHORITY" \
             --button="OK:0" \
-            --width=300 \
-            --height=100 \
+            --width=400 \
+            --height=150 \
             --center
     else
         log "Test completed successfully."
