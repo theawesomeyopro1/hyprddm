@@ -117,61 +117,28 @@ InputMethod=qtvirtualkeyboard" | pkexec tee "$VIRTUAL_KBD_CONF"
     log "SDDM Astronaut Theme installed successfully."
 }
 
-# Function to handle self-elevation with proper display permissions
-self_elevate() {
+# Function to handle self-elevation for installation steps
+self_elevate_install() {
     if [ "$(id -u)" -ne 0 ]; then
-        log "Elevating privileges..."
+        log "Elevating privileges for installation..."
 
         export ORIGINAL_USER=$(whoami)
         export ORIGINAL_UID=$(id -u)
         export ORIGINAL_HOME="$HOME"
         export ORIGINAL_HYPRDDM_DIR="$HYPRDDM_DIR"
-        # Try different DISPLAY values if :1 doesn't work
-        export ORIGINAL_DISPLAY=${DISPLAY:-":0"}
-        if ! xset -q >/dev/null 2>&1; then
-            log "DISPLAY :0 not available, trying :1..."
-            export ORIGINAL_DISPLAY=":1"
-        fi
-        export ORIGINAL_XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-"/run/user/$ORIGINAL_UID"}
-        export ORIGINAL_XAUTHORITY=${XAUTHORITY:-"$HOME/.Xauthority"}
         
-        log "Setting up Xauthority..."
-        log "Using DISPLAY=$ORIGINAL_DISPLAY, XAUTHORITY=$ORIGINAL_XAUTHORITY, XDG_RUNTIME_DIR=$ORIGINAL_XDG_RUNTIME_DIR"
-        [ -f "$ORIGINAL_XAUTHORITY" ] || touch "$ORIGINAL_XAUTHORITY"
-        xauth generate "$ORIGINAL_DISPLAY" . trusted 2>/dev/null
-        
-        log "Testing XWayland access..."
-        if ! DISPLAY="$ORIGINAL_DISPLAY" XDG_RUNTIME_DIR="$ORIGINAL_XDG_RUNTIME_DIR" XAUTHORITY="$ORIGINAL_XAUTHORITY" yad --title="Test" --text="Pre-elevation test" --timeout=1 2>/dev/null; then
-            log "Warning: Pre-elevation XWayland test failed. Display may not work correctly."
-        else
-            log "Pre-elevation XWayland test succeeded."
-        fi
-        
-        log "Granting root access to X server..."
-        xhost +local:root >/dev/null 2>&1
-        
-        log "Executing pkexec to elevate privileges..."
-        pkexec env DISPLAY="$ORIGINAL_DISPLAY" \
-            XDG_RUNTIME_DIR="$ORIGINAL_XDG_RUNTIME_DIR" \
-            XAUTHORITY="$ORIGINAL_XAUTHORITY" \
-            ORIGINAL_USER="$ORIGINAL_USER" \
+        log "Executing pkexec to elevate privileges for installation..."
+        pkexec env ORIGINAL_USER="$ORIGINAL_USER" \
             ORIGINAL_UID="$ORIGINAL_UID" \
             ORIGINAL_HOME="$ORIGINAL_HOME" \
             ORIGINAL_HYPRDDM_DIR="$ORIGINAL_HYPRDDM_DIR" \
-            "$SCRIPT_PATH"
-        
-        log "Revoking root access to X server..."
-        xhost -local:root >/dev/null 2>&1
+            "$SCRIPT_PATH" --install-only
         
         exit $?
     fi
     
     if [ -n "$ORIGINAL_USER" ] && [ "$ORIGINAL_USER" != "root" ]; then
-        export XDG_RUNTIME_DIR="$ORIGINAL_XDG_RUNTIME_DIR"
-        export DISPLAY="$ORIGINAL_DISPLAY"
-        export XAUTHORITY="$ORIGINAL_XAUTHORITY"
         export HYPRDDM_DIR="$ORIGINAL_HYPRDDM_DIR"
-        log "After elevation: Using DISPLAY=$DISPLAY, XAUTHORITY=$XAUTHORITY, XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR"
     fi
 }
 
@@ -254,8 +221,8 @@ test_theme() {
     pkexec cp "$METADATA_FILE" "$METADATA_FILE.bak"
     # Set the theme for testing
     pkexec sed -i "s/ConfigFile=.*/ConfigFile=Themes\/$theme.conf/" "$METADATA_FILE"
-    # Run the test with full environment
-    pkexec env DISPLAY="$DISPLAY" XAUTHORITY="$XAUTHORITY" XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" sddm-greeter-qt6 --test-mode --theme "$THEMES_PATH"
+    # Run the test
+    pkexec sddm-greeter-qt6 --test-mode --theme "$THEMES_PATH"
     # Restore original metadata.desktop
     pkexec mv "$METADATA_FILE.bak" "$METADATA_FILE"
     log "Test completed."
@@ -293,19 +260,23 @@ download_repository() {
     chmod +x "$SCRIPT_PATH"
 }
 
+# Function to perform installation steps (run as root)
+install_only() {
+    log "Performing installation steps as root..."
+    detect_distribution
+    install_dependencies
+    check_and_install_theme
+    log "Installation steps completed."
+}
+
 # Main function
 main() {
     log "Starting main function..."
-    # Elevate privileges if needed
-    self_elevate
     
-    log "Proceeding after privilege elevation..."
-    # Detect distribution
-    detect_distribution
+    # Perform installation steps with elevation
+    self_elevate_install
     
-    # Install dependencies and theme
-    install_dependencies
-    check_and_install_theme
+    log "Proceeding with GUI as original user..."
     
     # Prepare thumbnails
     prepare_thumbnails
@@ -398,6 +369,12 @@ main() {
 
 # Execute script
 log "Starting script execution..."
+
+# Check if we're running in install-only mode
+if [ "$1" = "--install-only" ]; then
+    install_only
+    exit 0
+fi
 
 # Check if the repository already exists in HYPRDDM_DIR
 if [ ! -d "$HYPRDDM_DIR" ] || [ ! -f "$SCRIPT_PATH" ]; then
