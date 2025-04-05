@@ -60,61 +60,69 @@ install_dependencies() {
 
 # Function to check and install theme files
 check_and_install_theme() {
-    # Ensure the parent directory exists
-    log "Ensuring parent directory /usr/share/sddm/themes exists..."
-    pkexec mkdir -p /usr/share/sddm/themes
-    if [ $? -ne 0 ]; then
-        log "Error: Failed to create /usr/share/sddm/themes directory."
-        exit 1
-    fi
-
-    # Check if the themes directory exists and contains files
-    if [ -d "$THEMES_PATH" ] && [ -n "$(ls -A "$THEMES_PATH")" ]; then
-        log "Warning: $THEMES_PATH already exists. Removing it to ensure a clean installation..."
-        pkexec rm -rf "$THEMES_PATH"
-        if [ $? -ne 0 ]; then
-            log "Error: Failed to remove $THEMES_PATH. Please check permissions and try again."
+    log "Installing SDDM Astronaut Theme with elevated privileges..."
+    pkexec bash -c "
+        # Ensure the parent directory exists
+        log() { echo \"\$1\"; }
+        log \"Ensuring parent directory /usr/share/sddm/themes exists...\"
+        mkdir -p /usr/share/sddm/themes
+        if [ \$? -ne 0 ]; then
+            log \"Error: Failed to create /usr/share/sddm/themes directory.\"
             exit 1
         fi
-        log "Successfully removed $THEMES_PATH."
-    fi
 
-    # Explicitly create the target directory
-    log "Creating target directory $THEMES_PATH..."
-    pkexec mkdir -p "$THEMES_PATH"
+        # Check if the themes directory exists and contains files
+        if [ -d \"$THEMES_PATH\" ] && [ -n \"\$(ls -A \"$THEMES_PATH\")\" ]; then
+            log \"Warning: $THEMES_PATH already exists. Removing it to ensure a clean installation...\"
+            rm -rf \"$THEMES_PATH\"
+            if [ \$? -ne 0 ]; then
+                log \"Error: Failed to remove $THEMES_PATH. Please check permissions and try again.\"
+                exit 1
+            fi
+            log \"Successfully removed $THEMES_PATH.\"
+        fi
+
+        # Explicitly create the target directory
+        log \"Creating target directory $THEMES_PATH...\"
+        mkdir -p \"$THEMES_PATH\"
+        if [ \$? -ne 0 ]; then
+            log \"Error: Failed to create $THEMES_PATH directory.\"
+            exit 1
+        fi
+
+        # Proceed with installation
+        log \"Installing SDDM Astronaut Theme from local repository...\"
+        log \"Copying repository contents from $HYPRDDM_DIR to $THEMES_PATH...\"
+        cp -r \"$HYPRDDM_DIR/\"* \"$THEMES_PATH/\"
+        
+        if [ \$? -ne 0 ]; then
+            log \"Error: Failed to copy repository contents to $THEMES_PATH.\"
+            exit 1
+        fi
+        
+        if [ -d \"$THEMES_PATH/Fonts\" ]; then
+            log \"Copying fonts from $THEMES_PATH/Fonts to $FONTS_PATH...\"
+            mkdir -p \"$FONTS_PATH\"
+            cp -r \"$THEMES_PATH/Fonts/\"* \"$FONTS_PATH/\"
+            log \"Updating font cache...\"
+            fc-cache -f
+        fi
+        
+        log \"Configuring SDDM theme...\"
+        echo \"[Theme]
+Current=sddm-astronaut-theme\" | tee \"$SDDM_CONF\"
+        
+        log \"Enabling virtual keyboard...\"
+        mkdir -p /etc/sddm.conf.d/
+        echo \"[General]
+InputMethod=qtvirtualkeyboard\" | tee \"$VIRTUAL_KBD_CONF\"
+        
+        log \"SDDM Astronaut Theme installed successfully.\"
+    "
     if [ $? -ne 0 ]; then
-        log "Error: Failed to create $THEMES_PATH directory."
+        log "Error: Failed to install SDDM Astronaut Theme."
         exit 1
     fi
-
-    # Proceed with installation
-    log "Installing SDDM Astronaut Theme from local repository..."
-    log "Copying repository contents from $HYPRDDM_DIR to $THEMES_PATH..."
-    pkexec cp -r "$HYPRDDM_DIR/"* "$THEMES_PATH/"
-    
-    if [ $? -ne 0 ]; then
-        log "Error: Failed to copy repository contents to $THEMES_PATH."
-        exit 1
-    fi
-    
-    if [ -d "$THEMES_PATH/Fonts" ]; then
-        log "Copying fonts from $THEMES_PATH/Fonts to $FONTS_PATH..."
-        pkexec mkdir -p "$FONTS_PATH"
-        pkexec cp -r "$THEMES_PATH/Fonts/"* "$FONTS_PATH/"
-        log "Updating font cache..."
-        pkexec fc-cache -f
-    fi
-    
-    log "Configuring SDDM theme..."
-    echo "[Theme]
-Current=sddm-astronaut-theme" | pkexec tee "$SDDM_CONF"
-    
-    log "Enabling virtual keyboard..."
-    pkexec mkdir -p /etc/sddm.conf.d/
-    echo "[General]
-InputMethod=qtvirtualkeyboard" | pkexec tee "$VIRTUAL_KBD_CONF"
-    
-    log "SDDM Astronaut Theme installed successfully."
 }
 
 # Function to handle self-elevation for installation steps
@@ -133,8 +141,7 @@ self_elevate_install() {
             ORIGINAL_HOME="$ORIGINAL_HOME" \
             ORIGINAL_HYPRDDM_DIR="$ORIGINAL_HYPRDDM_DIR" \
             "$SCRIPT_PATH" --install-only
-        
-        exit $?
+        # Removed exit $? to allow the script to continue
     fi
     
     if [ -n "$ORIGINAL_USER" ] && [ "$ORIGINAL_USER" != "root" ]; then
