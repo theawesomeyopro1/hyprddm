@@ -13,6 +13,7 @@ SDDM_CONF="/etc/sddm.conf"
 VIRTUAL_KBD_CONF="/etc/sddm.conf.d/virtualkbd.conf"
 TEMP_DIR="/tmp/sddm-previews-$USER"
 SCRIPT_PATH="$HYPRDDM_DIR/install.sh"
+YAD_OUTPUT="/tmp/yad_output.$USER.$$"  # Unique file path for YAD output
 
 # Function to log messages without debug clutter
 log() {
@@ -141,7 +142,6 @@ self_elevate_install() {
             ORIGINAL_HOME="$ORIGINAL_HOME" \
             ORIGINAL_HYPRDDM_DIR="$ORIGINAL_HYPRDDM_DIR" \
             "$SCRIPT_PATH" --install-only
-        # Removed exit $? to allow the script to continue
     fi
     
     if [ -n "$ORIGINAL_USER" ] && [ "$ORIGINAL_USER" != "root" ]; then
@@ -153,6 +153,7 @@ self_elevate_install() {
 cleanup() {
     log "Cleaning up temporary files..."
     rm -rf "$TEMP_DIR"
+    rm -f "$YAD_OUTPUT"
 }
 
 # Register cleanup function to run on exit
@@ -340,9 +341,9 @@ main() {
     
     # Launch YAD GUI and capture output
     log "Launching theme selector GUI..."
-    yad "${yad_args[@]}" --print-column=2 > /tmp/yad_output 2>&1
+    yad "${yad_args[@]}" --print-column=2 > "$YAD_OUTPUT" 2>&1
     RET=$?
-    SELECTION=$(cat /tmp/yad_output | grep -v "gtk-" | tr -d '|' | head -n 1)
+    SELECTION=$(cat "$YAD_OUTPUT" | grep -v "gtk-" | tr -d '|' | head -n 1)
     
     case $RET in
         0)  # Apply
