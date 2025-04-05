@@ -14,6 +14,7 @@ VIRTUAL_KBD_CONF="/etc/sddm.conf.d/virtualkbd.conf"
 TEMP_DIR="/tmp/sddm-previews-$USER"
 SCRIPT_PATH="$HYPRDDM_DIR/install.sh"
 YAD_OUTPUT="/tmp/yad_output.$USER.$$"  # Unique file path for YAD output
+METADATA_PERMS_FILE="/tmp/metadata_perms.$USER.$$"  # Store original permissions
 
 # Function to log messages without debug clutter
 log() {
@@ -119,6 +120,23 @@ Current=sddm-astronaut-theme\" | tee \"$SDDM_CONF\"
 InputMethod=qtvirtualkeyboard\" | tee \"$VIRTUAL_KBD_CONF\"
         
         log \"SDDM Astronaut Theme installed successfully.\"
+
+        # Store original permissions and ownership of metadata.desktop
+        log \"Storing original permissions of $METADATA_FILE...\"
+        stat -c '%a %U:%G' \"$METADATA_FILE\" > \"$METADATA_PERMS_FILE\"
+        if [ \$? -ne 0 ]; then
+            log \"Error: Failed to store original permissions of $METADATA_FILE.\"
+            exit 1
+        fi
+
+        # Make metadata.desktop writable by the user
+        log \"Making $METADATA_FILE writable by user $ORIGINAL_USER...\"
+        chown \"$ORIGINAL_USER\" \"$METADATA_FILE\"
+        chmod u+w \"$METADATA_FILE\"
+        if [ \$? -ne 0 ]; then
+            log \"Error: Failed to make $METADATA_FILE writable by $ORIGINAL_USER.\"
+            exit 1
+        fi
     "
     if [ $? -ne 0 ]; then
         log "Error: Failed to install SDDM Astronaut Theme."
@@ -149,11 +167,25 @@ self_elevate_install() {
     fi
 }
 
-# Function to clean up temporary files
+# Function to clean up temporary files and restore permissions
 cleanup() {
     log "Cleaning up temporary files..."
     rm -rf "$TEMP_DIR"
     rm -f "$YAD_OUTPUT"
+
+    # Restore original permissions of metadata.desktop
+    if [ -f "$METADATA_PERMS_FILE" ]; then
+        log "Restoring original permissions of $METADATA_FILE..."
+        read perms owner_group < "$METADATA_PERMS_FILE"
+        pkexec chmod "$perms" "$METADATA_FILE"
+        pkexec chown "$owner_group" "$METADATA_FILE"
+        if [ $? -eq 0 ]; then
+            log "Successfully restored permissions of $METADATA_FILE."
+        else
+            log "Warning: Failed to restore original permissions of $METADATA_FILE."
+        fi
+        rm -f "$METADATA_PERMS_FILE"
+    fi
 }
 
 # Register cleanup function to run on exit
@@ -215,9 +247,19 @@ prepare_thumbnails() {
 apply_theme() {
     local theme="$1"
     log "Applying theme: $theme"
-    pkexec sed -i "s/ConfigFile=.*/ConfigFile=Themes\/$theme.conf/" "$METADATA_FILE"
+    # Since $METADATA_FILE is now writable by the user, we can modify it directly
+    sed -i "s/ConfigFile=.*/ConfigFile=Themes\/$theme.conf/" "$METADATA_FILE"
+    if [ $? -ne 0 ]; then
+        log "Error: Failed to apply theme $theme to $METADATA_FILE."
+        return 1
+    fi
+    # Writing to $SDDM_CONF still requires pkexec
     echo "[Theme]
 Current=sddm-astronaut-theme" | pkexec tee "$SDDM_CONF" > /dev/null
+    if [ $? -ne 0 ]; then
+        log "Error: Failed to update $SDDM_CONF."
+        return 1
+    fi
     log "Theme applied successfully."
 }
 
@@ -226,40 +268,21 @@ test_theme() {
     local theme="$1"
     log "Testing theme: $theme"
 
-    # Create a temporary working directory
-    local temp_metadata_dir="$TEMP_DIR/metadata"
-    mkdir -p "$temp_metadata_dir"
-    local temp_metadata="$temp_metadata_dir/metadata.desktop"
-    local temp_metadata_bak="$temp_metadata_dir/metadata.desktop.bak"
-
-    # Copy the metadata.desktop file to the temporary directory
-    log "Copying $METADATA_FILE to temporary location for modification..."
-    pkexec cp "$METADATA_FILE" "$temp_metadata"
+    # Since $METADATA_FILE is now writable by the user, we can modify it directly
+    # Back up the metadata.desktop file
+    log "Backing up $METADATA_FILE to $METADATA_FILE.bak..."
+    cp "$METADATA_FILE" "$METADATA_FILE.bak"
     if [ $? -ne 0 ]; then
-        log "Error: Failed to copy $METADATA_FILE to $temp_metadata."
+        log "Error: Failed to back up $METADATA_FILE."
         return 1
     fi
 
-    # Back up the temporary metadata file and modify it
-    log "Backing up temporary metadata file to $temp_metadata_bak..."
-    cp "$temp_metadata" "$temp_metadata_bak"
+    # Set the theme for testing
+    log "Setting theme $theme in $METADATA_FILE..."
+    sed -i "s/ConfigFile=.*/ConfigFile=Themes\/$theme.conf/" "$METADATA_FILE"
     if [ $? -ne 0 ]; then
-        log "Error: Failed to back up $temp_metadata to $temp_metadata_bak."
-        return 1
-    fi
-
-    log "Setting theme $theme in temporary metadata file..."
-    sed -i "s/ConfigFile=.*/ConfigFile=Themes\/$theme.conf/" "$temp_metadata"
-    if [ $? -ne 0 ]; then
-        log "Error: Failed to modify $temp_metadata for testing."
-        return 1
-    fi
-
-    # Copy the modified metadata file back to the original location
-    log "Copying modified metadata file back to $METADATA_FILE..."
-    pkexec cp "$temp_metadata" "$METADATA_FILE"
-    if [ $? -ne 0 ]; then
-        log "Error: Failed to copy modified $temp_metadata to $METADATA_FILE."
+        log "Error: Failed to modify $METADATA_FILE for testing."
+        mv "$METADATA_FILE.bak" "$METADATA_FILE" 2>/dev/null
         return 1
     fi
 
@@ -278,9 +301,9 @@ test_theme() {
 
     # Restore the original metadata.desktop file
     log "Restoring original $METADATA_FILE..."
-    pkexec cp "$temp_metadata_bak" "$METADATA_FILE"
+    mv "$METADATA_FILE.bak" "$METADATA_FILE"
     if [ $? -ne 0 ]; then
-        log "Error: Failed to restore $METADATA_FILE from $temp_metadata_bak."
+        log "Error: Failed to restore $METADATA_FILE."
         return 1
     fi
 
