@@ -225,15 +225,70 @@ Current=sddm-astronaut-theme" | pkexec tee "$SDDM_CONF" > /dev/null
 test_theme() {
     local theme="$1"
     log "Testing theme: $theme"
-    # Backup current metadata.desktop
-    pkexec cp "$METADATA_FILE" "$METADATA_FILE.bak"
-    # Set the theme for testing
-    pkexec sed -i "s/ConfigFile=.*/ConfigFile=Themes\/$theme.conf/" "$METADATA_FILE"
-    # Run the test
-    pkexec sddm-greeter-qt6 --test-mode --theme "$THEMES_PATH"
-    # Restore original metadata.desktop
-    pkexec mv "$METADATA_FILE.bak" "$METADATA_FILE"
-    log "Test completed."
+
+    # Perform file operations as root in a single pkexec call
+    pkexec bash -c "
+        log() { echo \"\$1\"; }
+        # Backup current metadata.desktop
+        log \"Backing up $METADATA_FILE to $METADATA_FILE.bak...\"
+        cp \"$METADATA_FILE\" \"$METADATA_FILE.bak\"
+        if [ \$? -ne 0 ]; then
+            log \"Error: Failed to back up $METADATA_FILE.\"
+            exit 1
+        fi
+
+        # Set the theme for testing
+        log \"Setting theme $theme in $METADATA_FILE...\"
+        sed -i \"s/ConfigFile=.*/ConfigFile=Themes\/$theme.conf/\" \"$METADATA_FILE\"
+        if [ \$? -ne 0 ]; then
+            log \"Error: Failed to modify $METADATA_FILE for testing.\"
+            mv \"$METADATA_FILE.bak\" \"$METADATA_FILE\" 2>/dev/null
+            exit 1
+        fi
+    "
+    if [ $? -ne 0 ]; then
+        log "Error: Failed to prepare theme for testing."
+        return 1
+    fi
+
+    # Run the test as the original user
+    log "Running SDDM greeter test as user $ORIGINAL_USER..."
+    if [ -n "$ORIGINAL_UID" ] && [ "$ORIGINAL_UID" != "0" ]; then
+        # Use su to switch to the original user and run the test
+        su - "$ORIGINAL_USER" -c "sddm-greeter-qt6 --test-mode --theme \"$THEMES_PATH\"" 2>&1
+        TEST_RET=$?
+    else
+        log "Error: Original user not set or is root. Cannot run test as original user."
+        TEST_RET=1
+    fi
+
+    # Restore the original metadata.desktop as root
+    pkexec bash -c "
+        log() { echo \"\$1\"; }
+        log \"Restoring original $METADATA_FILE...\"
+        mv \"$METADATA_FILE.bak\" \"$METADATA_FILE\"
+        if [ \$? -ne 0 ]; then
+            log \"Error: Failed to restore $METADATA_FILE.\"
+            exit 1
+        fi
+    "
+    if [ $? -ne 0 ]; then
+        log "Error: Failed to restore original $METADATA_FILE after testing."
+        return 1
+    fi
+
+    # Check the result of the test
+    if [ $TEST_RET -ne 0 ]; then
+        log "Warning: SDDM greeter test failed. This may be due to missing dependencies or X server issues."
+        yad --title="Test Failed" \
+            --text="Failed to test theme '$theme'. Ensure all dependencies are installed and an X server is running." \
+            --button="OK:0" \
+            --width=300 \
+            --height=100 \
+            --center
+    else
+        log "Test completed successfully."
+    fi
 }
 
 # Function to download the repository
