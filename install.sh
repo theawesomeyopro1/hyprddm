@@ -15,6 +15,7 @@ TEMP_DIR="/tmp/sddm-previews-$USER"
 SCRIPT_PATH="$HYPRDDM_DIR/install.sh"
 YAD_OUTPUT="/tmp/yad_output.$USER.$$"  # Unique file path for YAD output
 METADATA_PERMS_FILE="/tmp/metadata_perms.$USER.$$"  # Store original permissions
+THEMES_PATH_PERMS_FILE="/tmp/themes_path_perms.$USER.$$"  # Store original permissions for THEMES_PATH
 
 # Function to log messages without debug clutter
 log() {
@@ -121,11 +122,28 @@ InputMethod=qtvirtualkeyboard\" | tee \"$VIRTUAL_KBD_CONF\"
         
         log \"SDDM Astronaut Theme installed successfully.\"
 
+        # Store original permissions and ownership of THEMES_PATH
+        log \"Storing original permissions of $THEMES_PATH...\"
+        stat -c '%a %U:%G' \"$THEMES_PATH\" > \"$THEMES_PATH_PERMS_FILE\"
+        if [ \$? -ne 0 ]; then
+            log \"Error: Failed to store original permissions of $THEMES_PATH.\"
+            exit 1
+        fi
+
         # Store original permissions and ownership of metadata.desktop
         log \"Storing original permissions of $METADATA_FILE...\"
         stat -c '%a %U:%G' \"$METADATA_FILE\" > \"$METADATA_PERMS_FILE\"
         if [ \$? -ne 0 ]; then
             log \"Error: Failed to store original permissions of $METADATA_FILE.\"
+            exit 1
+        fi
+
+        # Make THEMES_PATH writable by the user
+        log \"Making $THEMES_PATH writable by user $ORIGINAL_USER...\"
+        chown \"$ORIGINAL_USER\" \"$THEMES_PATH\"
+        chmod u+w \"$THEMES_PATH\"
+        if [ \$? -ne 0 ]; then
+            log \"Error: Failed to make $THEMES_PATH writable by $ORIGINAL_USER.\"
             exit 1
         fi
 
@@ -160,6 +178,10 @@ self_elevate_install() {
             ORIGINAL_HOME="$ORIGINAL_HOME" \
             ORIGINAL_HYPRDDM_DIR="$ORIGINAL_HYPRDDM_DIR" \
             "$SCRIPT_PATH" --install-only
+        if [ $? -ne 0 ]; then
+            log "Error: Failed to elevate privileges for installation."
+            exit 1
+        fi
     fi
     
     if [ -n "$ORIGINAL_USER" ] && [ "$ORIGINAL_USER" != "root" ]; then
@@ -186,10 +208,21 @@ cleanup() {
         fi
         rm -f "$METADATA_PERMS_FILE"
     fi
-}
 
-# Register cleanup function to run on exit
-trap cleanup EXIT
+    # Restore original permissions of THEMES_PATH
+    if [ -f "$THEMES_PATH_PERMS_FILE" ]; then
+        log "Restoring original permissions of $THEMES_PATH..."
+        read perms owner_group < "$THEMES_PATH_PERMS_FILE"
+        pkexec chmod "$perms" "$THEMES_PATH"
+        pkexec chown "$owner_group" "$THEMES_PATH"
+        if [ $? -eq 0 ]; then
+            log "Successfully restored permissions of $THEMES_PATH."
+        else
+            log "Warning: Failed to restore original permissions of $THEMES_PATH."
+        fi
+        rm -f "$THEMES_PATH_PERMS_FILE"
+    fi
+}
 
 # Function to prepare thumbnails
 prepare_thumbnails() {
@@ -268,7 +301,7 @@ test_theme() {
     local theme="$1"
     log "Testing theme: $theme"
 
-    # Since $METADATA_FILE is now writable by the user, we can modify it directly
+    # Since $METADATA_FILE and its parent directory are now writable by the user, we can modify it directly
     # Back up the metadata.desktop file
     log "Backing up $METADATA_FILE to $METADATA_FILE.bak..."
     cp "$METADATA_FILE" "$METADATA_FILE.bak"
@@ -463,6 +496,9 @@ main() {
 
 # Execute script
 log "Starting script execution..."
+
+# Register cleanup function to run on exit of the main script
+trap cleanup EXIT
 
 # Check if we're running in install-only mode
 if [ "$1" = "--install-only" ]; then
