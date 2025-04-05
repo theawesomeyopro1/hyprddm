@@ -249,12 +249,21 @@ test_theme() {
 download_repository() {
     log "Checking for existing hyprddm directory in ${ORIGINAL_HOME:-$HOME}..."
     if [ -d "$HYPRDDM_DIR" ]; then
-        log "Directory $HYPRDDM_DIR already exists. Removing it to ensure a clean download..."
-        rm -rf "$HYPRDDM_DIR"
+        log "Directory $HYPRDDM_DIR already exists. Removing it with elevated privileges to ensure a clean download..."
+        pkexec rm -rf "$HYPRDDM_DIR"
+        if [ $? -ne 0 ]; then
+            log "Error: Failed to remove $HYPRDDM_DIR. Please check permissions and try again."
+            exit 1
+        fi
+        log "Successfully removed $HYPRDDM_DIR."
     fi
 
     log "Creating hyprddm directory in ${ORIGINAL_HOME:-$HOME}..."
     mkdir -p "$HYPRDDM_DIR"
+    if [ $? -ne 0 ]; then
+        log "Error: Failed to create $HYPRDDM_DIR directory."
+        exit 1
+    fi
 
     log "Cloning repository from https://github.com/nomadxxxx/hyprddm.git to $HYPRDDM_DIR..."
     git clone -b master --depth 1 --progress https://github.com/nomadxxxx/hyprddm.git "$HYPRDDM_DIR" 2>&1
