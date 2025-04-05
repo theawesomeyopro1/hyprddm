@@ -187,6 +187,11 @@ self_elevate_install() {
     if [ -n "$ORIGINAL_USER" ] && [ "$ORIGINAL_USER" != "root" ]; then
         export HYPRDDM_DIR="$ORIGINAL_HYPRDDM_DIR"
     fi
+
+    # Debug: Check permissions after installation
+    log "Checking permissions after installation..."
+    log "Permissions of $THEMES_PATH: $(ls -ld "$THEMES_PATH")"
+    log "Permissions of $METADATA_FILE: $(ls -l "$METADATA_FILE")"
 }
 
 # Function to clean up temporary files and restore permissions
@@ -389,6 +394,9 @@ download_repository() {
 
 # Function to perform installation steps (run as root)
 install_only() {
+    # Unset the EXIT trap to prevent cleanup from running in this subprocess
+    trap - EXIT
+
     log "Performing installation steps as root..."
     detect_distribution
     install_dependencies
