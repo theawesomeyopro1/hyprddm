@@ -126,21 +126,29 @@ self_elevate() {
         export ORIGINAL_UID=$(id -u)
         export ORIGINAL_HOME="$HOME"
         export ORIGINAL_HYPRDDM_DIR="$HYPRDDM_DIR"
-        export ORIGINAL_DISPLAY=${DISPLAY:-":1"}
+        # Try different DISPLAY values if :1 doesn't work
+        export ORIGINAL_DISPLAY=${DISPLAY:-":0"}
+        if ! xset -q >/dev/null 2>&1; then
+            log "DISPLAY :0 not available, trying :1..."
+            export ORIGINAL_DISPLAY=":1"
+        fi
         export ORIGINAL_XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-"/run/user/$ORIGINAL_UID"}
         export ORIGINAL_XAUTHORITY=${XAUTHORITY:-"$HOME/.Xauthority"}
         
         log "Setting up Xauthority..."
+        log "Using DISPLAY=$ORIGINAL_DISPLAY, XAUTHORITY=$ORIGINAL_XAUTHORITY, XDG_RUNTIME_DIR=$ORIGINAL_XDG_RUNTIME_DIR"
         [ -f "$ORIGINAL_XAUTHORITY" ] || touch "$ORIGINAL_XAUTHORITY"
         xauth generate "$ORIGINAL_DISPLAY" . trusted 2>/dev/null
         
         log "Testing XWayland access..."
         if ! DISPLAY="$ORIGINAL_DISPLAY" XDG_RUNTIME_DIR="$ORIGINAL_XDG_RUNTIME_DIR" XAUTHORITY="$ORIGINAL_XAUTHORITY" yad --title="Test" --text="Pre-elevation test" --timeout=1 2>/dev/null; then
             log "Warning: Pre-elevation XWayland test failed. Display may not work correctly."
+        else
+            log "Pre-elevation XWayland test succeeded."
         fi
         
         log "Granting root access to X server..."
-        xhost +SI:localuser:root >/dev/null 2>&1
+        xhost +local:root >/dev/null 2>&1
         
         log "Executing pkexec to elevate privileges..."
         pkexec env DISPLAY="$ORIGINAL_DISPLAY" \
@@ -153,7 +161,7 @@ self_elevate() {
             "$SCRIPT_PATH"
         
         log "Revoking root access to X server..."
-        xhost -SI:localuser:root >/dev/null 2>&1
+        xhost -local:root >/dev/null 2>&1
         
         exit $?
     fi
@@ -163,6 +171,7 @@ self_elevate() {
         export DISPLAY="$ORIGINAL_DISPLAY"
         export XAUTHORITY="$ORIGINAL_XAUTHORITY"
         export HYPRDDM_DIR="$ORIGINAL_HYPRDDM_DIR"
+        log "After elevation: Using DISPLAY=$DISPLAY, XAUTHORITY=$XAUTHORITY, XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR"
     fi
 }
 
@@ -206,7 +215,10 @@ prepare_thumbnails() {
         preview_file="$TEMP_DIR/$theme-preview.png"
         if [ -f "$local_file" ]; then
             log "Generating thumbnail for $theme from local file $local_file..."
-            magick "$local_file" -resize 200x150 "$preview_file"
+            magick "$local_file" -resize 200x150 "$preview_file" 2>/dev/null
+            if [ $? -ne 0 ]; then
+                log "Warning: Failed to generate thumbnail for $theme from $local_file."
+            fi
         elif [ ! -f "$preview_file" ]; then
             url="${theme_previews[$theme]}"
             log "Downloading preview for $theme from $url..."
@@ -215,7 +227,11 @@ prepare_thumbnails() {
                 log "Warning: Failed to download preview for $theme from $url."
             else
                 log "Generating thumbnail for $theme..."
-                magick "$preview_file" -resize 200x150 "$preview_file"
+                magick "$preview_file" -resize 200x150 "$preview_file" 2>/dev/null
+                if [ $? -ne 0 ]; then
+                    log "Warning: Failed to generate thumbnail for $theme from $preview_file. Image may be corrupted."
+                    rm -f "$preview_file"  # Remove the corrupted file
+                fi
             fi
         fi
     done
