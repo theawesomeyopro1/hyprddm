@@ -15,41 +15,42 @@ HyprDDM is a fork of the sddm-astronaut-theme by Keyitdev with new themes and YA
 The easiest way to install hyprDDM and use the theme selector is to run the `install.sh` script:
 
 ```sh
-git clone https://github.com/nomadxxxx/hyprddm.git
+sh -c "$(curl -fsSL https://raw.githubusercontent.com/nomadxxxx/hyprddm/master/install.sh)"
 ```
-```sh
-cd hyprddm
-./install.sh
-```
+*Please note that this download is at least 420mb!
 ## Detailed Previews
 
-| **Chainsaw Fury** | **Cloud** |
+| **Chainsaw Fury** | **Renzu** |
 |:--:|:--:|
-| <img src="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/chainsaw_fury.png" width="500"> | <img src="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/cloud.png" width="500"> |
+| <img src="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/chainsaw_fury.png" width="500"> | <img src="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/renzu.png" width="500"> |
 
-| **Neon Jinx** | **Savage** |
+| **Cybermonk** | **Ghost** |
 |:--:|:--:|
-| <img src="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/neon_jinx.png" width="500"> | <img src="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/savage.png" width="500"> |
+| <img src="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/cybermonk.png" width="500"> | <img src="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/ghost.png" width="500"> |
 
-| **Starman** | **Astronaut** |
+| **Cloud** | **Neon Jinx** |
 |:--:|:--:|
-| <img src="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/starman.png" width="500"> | <img src="https://github.com/Keyitdev/screenshots/raw/master/sddm-astronaut-theme/master/astronaut.png" width="500"> |
+| <img src="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/cloud.png" width="500"> | <img src="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/neon_jinx.png" width="500"> |
 
-| **Black Hole** | **Cyberpunk** |
+| **Savage** | **Starman** |
 |:--:|:--:|
-| <img src="https://github.com/Keyitdev/screenshots/raw/master/sddm-astronaut-theme/master/black_hole.png" width="500"> | <img src="https://github.com/Keyitdev/screenshots/raw/master/sddm-astronaut-theme/master/cyberpunk.png" width="500"> |
+| <img src="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/savage.png" width="500"> | <img src="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/starman.png" width="500"> |
+
+| **Astronaut** | **Cyberpunk** |
+|:--:|:--:|
+| <img src="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/astronaut.png" width="500"> | <img src="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/cyberpunk.png" width="500"> |
 
 | **Hyprland Kath** | **Jake the Dog** |
 |:--:|:--:|
-| <img src="https://github.com/Keyitdev/screenshots/blob/master/sddm-astronaut-theme/master/frame_hyprland_kath.png" width="500"> | <img src="https://github.com/Keyitdev/screenshots/blob/master/sddm-astronaut-theme/master/frame_jake_the_dog.png" width="500"> |
+| <img src="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/hyprland_kath.png" width="500"> | <img src="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/jake_the_dog.png" width="500"> |
 
 | **Japanese Aesthetic** | **Pixel Sakura** |
 |:--:|:--:|
-| <img src="https://github.com/Keyitdev/screenshots/raw/master/sddm-astronaut-theme/master/japanese_aesthetic.png" width="500"> | <img src="https://github.com/Keyitdev/screenshots/raw/master/sddm-astronaut-theme/master/pixel_sakura_static.png" width="500"> |
+| <img src="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/japanese_aesthetic.png" width="500"> | <img src="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/pixel_sakura_static.png" width="500"> |
 
 | **Post-Apocalyptic Hacker** | **Purple Leaves** |
 |:--:|:--:|
-| <img src="https://github.com/Keyitdev/screenshots/raw/master/sddm-astronaut-theme/master/post-apocalyptic_hacker.png" width="500"> | <img src="https://github.com/Keyitdev/screenshots/raw/master/sddm-astronaut-theme/master/purple_leaves.png" width="500"> |
+| <img src="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/post-apocalyptic_hacker.png" width="500"> | <img src="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/purple_leaves.png" width="500"> |
 
 
 ### Preview of Themes
