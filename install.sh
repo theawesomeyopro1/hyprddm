@@ -363,10 +363,11 @@ test_theme() {
     if [ "$SESSION_TYPE" = "Wayland" ]; then
         export QT_LOGGING_RULES="qt5ct.debug=false"
         export QT_WAYLAND_DISABLE_WINDOWDECORATION=1
+        export QT_QPA_PLATFORM="wayland;xcb"  # Fallback to XCB if Wayland fails
     fi
 
     # Run the test
-    log "Running SDDM greeter test as user $ORIGINAL_USER..."
+    log "Running SDDM greeter test as user $(whoami)..."
     TEST_RET=1
     GREETER_OUTPUT=""
     if [ "$USE_NESTED_SERVER" -eq 1 ]; then
@@ -376,12 +377,10 @@ test_theme() {
             Xephyr :99 -ac -screen 800x600 -host-cursor &
             XEPHYR_PID=$!
             sleep 2  # Wait for Xephyr to start
-            if [ -n "$ORIGINAL_UID" ] && [ "$ORIGINAL_UID" != "0" ]; then
-                GREETER_OUTPUT=$(env DISPLAY=:99 \
-                    QT_LOGGING_RULES="qt5ct.debug=false" \
-                    runuser -u "$ORIGINAL_USER" -- sddm-greeter-qt6 --test-mode --theme "$THEMES_PATH" 2>&1)
-                TEST_RET=$?
-            fi
+            GREETER_OUTPUT=$(env DISPLAY=:99 \
+                QT_LOGGING_RULES="qt5ct.debug=false" \
+                sddm-greeter-qt6 --test-mode --theme "$THEMES_PATH" 2>&1)
+            TEST_RET=$?
             kill $XEPHYR_PID 2>/dev/null
         else
             log "Error: Xephyr is not installed. Cannot start a nested X server."
@@ -395,17 +394,13 @@ test_theme() {
             return 1
         fi
     else
-        # Run on the existing display server
-        if [ -n "$ORIGINAL_UID" ] && [ "$ORIGINAL_UID" != "0" ]; then
-            GREETER_OUTPUT=$(env DISPLAY="$DISPLAY" \
-                XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}" \
-                QT_LOGGING_RULES="qt5ct.debug=false" \
-                runuser -u "$ORIGINAL_USER" -- sddm-greeter-qt6 --test-mode --theme "$THEMES_PATH" 2>&1)
-            TEST_RET=$?
-        else
-            log "Error: Original user not set or is root. Cannot run test as original user."
-            TEST_RET=1
-        fi
+        # Run directly as the current user
+        GREETER_OUTPUT=$(env DISPLAY="$DISPLAY" \
+            XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}" \
+            QT_LOGGING_RULES="qt5ct.debug=false" \
+            QT_QPA_PLATFORM="wayland;xcb" \
+            sddm-greeter-qt6 --test-mode --theme "$THEMES_PATH" 2>&1)
+        TEST_RET=$?
     fi
 
     # Log the greeter output for debugging
