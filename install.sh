@@ -324,12 +324,46 @@ test_theme() {
         return 1
     fi
 
+    # Check if a display server is running
+    log "Checking for display server..."
+    if [ -z "$DISPLAY" ]; then
+        log "Error: DISPLAY variable is not set. No X server or Wayland session detected."
+        yad --title="Test Failed" \
+            --text="Failed to test theme '$theme'. No display server detected.\nPlease run this script in a graphical session (X11 or Wayland with XWayland).\nIf using SSH, enable X forwarding with 'ssh -X'." \
+            --button="OK:0" \
+            --width=400 \
+            --height=150 \
+            --center
+        mv "$METADATA_FILE.bak" "$METADATA_FILE" 2>/dev/null
+        return 1
+    fi
+
+    # Debug: Log DISPLAY and XAUTHORITY before running the command
+    log "DISPLAY=$DISPLAY"
+    log "XAUTHORITY=${XAUTHORITY:-$HOME/.Xauthority}"
+
+    # Check if XWayland is installed (for Wayland sessions)
+    if [ -n "$WAYLAND_DISPLAY" ] && ! command -v Xwayland >/dev/null 2>&1; then
+        log "Warning: Running in a Wayland session, but XWayland is not installed."
+        yad --title="Test Failed" \
+            --text="Failed to test theme '$theme'. XWayland is required for Wayland sessions.\nPlease install XWayland (e.g., 'sudo pacman -S xorg-xwayland' on Arch)." \
+            --button="OK:0" \
+            --width=400 \
+            --height=150 \
+            --center
+        mv "$METADATA_FILE.bak" "$METADATA_FILE" 2>/dev/null
+        return 1
+    fi
+
     # Run the test as the original user with proper environment variables
     log "Running SDDM greeter test as user $ORIGINAL_USER..."
     if [ -n "$ORIGINAL_UID" ] && [ "$ORIGINAL_UID" != "0" ]; then
         # Use runuser to run the command as the original user without a password prompt
         # Pass DISPLAY and XAUTHORITY to ensure X server access
-        env DISPLAY="$DISPLAY" XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}" \
+        # If in a Wayland session, set QT_LOGGING_RULES to help with debugging
+        env DISPLAY="$DISPLAY" \
+            XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}" \
+            QT_LOGGING_RULES="qt5ct.debug=false" \
             runuser -u "$ORIGINAL_USER" -- sddm-greeter-qt6 --test-mode --theme "$THEMES_PATH" 2>&1
         TEST_RET=$?
     else
