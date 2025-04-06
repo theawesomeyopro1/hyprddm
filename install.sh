@@ -43,20 +43,20 @@ install_dependencies() {
     log "Installing required dependencies..."
     case $DISTRO in
         arch)
-            pkexec pacman -S --noconfirm --needed sddm qt6-svg qt6-virtualkeyboard qt6-multimedia-ffmpeg yad polkit xorg-xwayland imagemagick curl git
+            pkexec pacman -S --noconfirm --needed sddm qt6-svg qt6-virtualkeyboard qt6-multimedia-ffmpeg yad polkit xorg-xwayland imagemagick curl git xorg-server-xephyr
             ;;
         void)
-            pkexec xbps-install -Sy sddm qt6-svg qt6-virtualkeyboard qt6-multimedia yad polkit xwayland imagemagick curl git
+            pkexec xbps-install -Sy sddm qt6-svg qt6-virtualkeyboard qt6-multimedia yad polkit xwayland imagemagick curl git xorg-server-xephyr
             ;;
         fedora)
-            pkexec dnf install -y sddm qt6-qtsvg qt6-qtvirtualkeyboard qt6-qtmultimedia yad polkit xorg-x11-server-Xwayland imagemagick curl git
+            pkexec dnf install -y sddm qt6-qtsvg qt6-qtvirtualkeyboard qt6-qtmultimedia yad polkit xorg-x11-server-Xwayland imagemagick curl git xorg-x11-server-Xephyr
             ;;
         opensuse)
-            pkexec zypper install -y sddm-qt6 libQt6Svg6 qt6-virtualkeyboard qt6-virtualkeyboard-imports qt6-multimedia yad polkit xorg-x11-server imagemagick curl git
+            pkexec zypper install -y sddm-qt6 libQt6Svg6 qt6-virtualkeyboard qt6-virtualkeyboard-imports qt6-multimedia yad polkit xorg-x11-server imagemagick curl git xorg-x11-server-xephyr
             ;;
         *)
             log "Unsupported distribution. Please install dependencies manually."
-            log "Required packages: sddm, qt6-svg, qt6-virtualkeyboard, qt6-multimedia, yad, polkit, xwayland, imagemagick, curl, git"
+            log "Required packages: sddm, qt6-svg, qt6-virtualkeyboard, qt6-multimedia, yad, polkit, xwayland, imagemagick, curl, git, xorg-server-xephyr"
             ;;
     esac
 }
@@ -324,26 +324,30 @@ test_theme() {
         return 1
     fi
 
+    # Detect session type
+    log "Detecting session type..."
+    if [ -n "$WAYLAND_DISPLAY" ]; then
+        SESSION_TYPE="Wayland"
+    elif [ -n "$DISPLAY" ]; then
+        SESSION_TYPE="X11"
+    else
+        SESSION_TYPE="TTY"
+    fi
+    log "Session type: $SESSION_TYPE"
+
     # Check if a display server is running
     log "Checking for display server..."
+    USE_NESTED_SERVER=0
     if [ -z "$DISPLAY" ]; then
-        log "Error: DISPLAY variable is not set. No X server or Wayland session detected."
-        yad --title="Test Failed" \
-            --text="Failed to test theme '$theme'. No display server detected.\nPlease run this script in a graphical session (X11 or Wayland with XWayland).\nIf using SSH, enable X forwarding with 'ssh -X'." \
-            --button="OK:0" \
-            --width=400 \
-            --height=150 \
-            --center
-        mv "$METADATA_FILE.bak" "$METADATA_FILE" 2>/dev/null
-        return 1
+        log "Warning: DISPLAY variable is not set. No X server or Wayland session detected."
+        USE_NESTED_SERVER=1
+    else
+        log "DISPLAY=$DISPLAY"
+        log "XAUTHORITY=${XAUTHORITY:-$HOME/.Xauthority}"
     fi
 
-    # Debug: Log DISPLAY and XAUTHORITY before running the command
-    log "DISPLAY=$DISPLAY"
-    log "XAUTHORITY=${XAUTHORITY:-$HOME/.Xauthority}"
-
     # Check if XWayland is installed (for Wayland sessions)
-    if [ -n "$WAYLAND_DISPLAY" ] && ! command -v Xwayland >/dev/null 2>&1; then
+    if [ "$SESSION_TYPE" = "Wayland" ] && ! command -v Xwayland >/dev/null 2>&1; then
         log "Warning: Running in a Wayland session, but XWayland is not installed."
         yad --title="Test Failed" \
             --text="Failed to test theme '$theme'. XWayland is required for Wayland sessions.\nPlease install XWayland (e.g., 'sudo pacman -S xorg-xwayland' on Arch)." \
@@ -355,21 +359,58 @@ test_theme() {
         return 1
     fi
 
-    # Run the test as the original user with proper environment variables
-    log "Running SDDM greeter test as user $ORIGINAL_USER..."
-    if [ -n "$ORIGINAL_UID" ] && [ "$ORIGINAL_UID" != "0" ]; then
-        # Use runuser to run the command as the original user without a password prompt
-        # Pass DISPLAY and XAUTHORITY to ensure X server access
-        # If in a Wayland session, set QT_LOGGING_RULES to help with debugging
-        env DISPLAY="$DISPLAY" \
-            XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}" \
-            QT_LOGGING_RULES="qt5ct.debug=false" \
-            runuser -u "$ORIGINAL_USER" -- sddm-greeter-qt6 --test-mode --theme "$THEMES_PATH" 2>&1
-        TEST_RET=$?
-    else
-        log "Error: Original user not set or is root. Cannot run test as original user."
-        TEST_RET=1
+    # Set Qt environment variables for Wayland
+    if [ "$SESSION_TYPE" = "Wayland" ]; then
+        export QT_LOGGING_RULES="qt5ct.debug=false"
+        export QT_WAYLAND_DISABLE_WINDOWDECORATION=1
     fi
+
+    # Run the test
+    log "Running SDDM greeter test as user $ORIGINAL_USER..."
+    TEST_RET=1
+    GREETER_OUTPUT=""
+    if [ "$USE_NESTED_SERVER" -eq 1 ]; then
+        # Fallback to a nested X server using Xephyr
+        if command -v Xephyr >/dev/null 2>&1; then
+            log "Starting a nested X server with Xephyr..."
+            Xephyr :99 -ac -screen 800x600 -host-cursor &
+            XEPHYR_PID=$!
+            sleep 2  # Wait for Xephyr to start
+            if [ -n "$ORIGINAL_UID" ] && [ "$ORIGINAL_UID" != "0" ]; then
+                GREETER_OUTPUT=$(env DISPLAY=:99 \
+                    QT_LOGGING_RULES="qt5ct.debug=false" \
+                    runuser -u "$ORIGINAL_USER" -- sddm-greeter-qt6 --test-mode --theme "$THEMES_PATH" 2>&1)
+                TEST_RET=$?
+            fi
+            kill $XEPHYR_PID 2>/dev/null
+        else
+            log "Error: Xephyr is not installed. Cannot start a nested X server."
+            yad --title="Test Failed" \
+                --text="Failed to test theme '$theme'. No display server detected, and Xephyr is not installed.\nPlease run this script in a graphical session (X11 or Wayland with XWayland).\nIf using SSH, enable X forwarding with 'ssh -X'." \
+                --button="OK:0" \
+                --width=400 \
+                --height=150 \
+                --center
+            mv "$METADATA_FILE.bak" "$METADATA_FILE" 2>/dev/null
+            return 1
+        fi
+    else
+        # Run on the existing display server
+        if [ -n "$ORIGINAL_UID" ] && [ "$ORIGINAL_UID" != "0" ]; then
+            GREETER_OUTPUT=$(env DISPLAY="$DISPLAY" \
+                XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}" \
+                QT_LOGGING_RULES="qt5ct.debug=false" \
+                runuser -u "$ORIGINAL_USER" -- sddm-greeter-qt6 --test-mode --theme "$THEMES_PATH" 2>&1)
+            TEST_RET=$?
+        else
+            log "Error: Original user not set or is root. Cannot run test as original user."
+            TEST_RET=1
+        fi
+    fi
+
+    # Log the greeter output for debugging
+    log "SDDM greeter output:"
+    log "$GREETER_OUTPUT"
 
     # Restore the original metadata.desktop file
     log "Restoring original $METADATA_FILE..."
@@ -383,11 +424,20 @@ test_theme() {
     if [ $TEST_RET -ne 0 ]; then
         log "Warning: SDDM greeter test failed. This may be due to missing dependencies or X server issues."
         log "DISPLAY=$DISPLAY, XAUTHORITY=$XAUTHORITY"
+        ERROR_MESSAGE="Failed to test theme '$theme'.\n"
+        if [ "$SESSION_TYPE" = "TTY" ]; then
+            ERROR_MESSAGE="$ERROR_MESSAGE\nRunning in a TTY. Please start an X server (e.g., 'startx') or run this script in a graphical session."
+        elif [ "$SESSION_TYPE" = "Wayland" ]; then
+            ERROR_MESSAGE="$ERROR_MESSAGE\nRunning in a Wayland session. Ensure XWayland is running (check 'ps aux | grep Xwayland')."
+        else
+            ERROR_MESSAGE="$ERROR_MESSAGE\nEnsure an X server or Wayland with XWayland is running.\nDISPLAY=$DISPLAY\nXAUTHORITY=$XAUTHORITY"
+        fi
+        ERROR_MESSAGE="$ERROR_MESSAGE\n\nGreeter output:\n$GREETER_OUTPUT"
         yad --title="Test Failed" \
-            --text="Failed to test theme '$theme'. Ensure an X server or Wayland with XWayland is running.\nDISPLAY=$DISPLAY\nXAUTHORITY=$XAUTHORITY" \
+            --text="$ERROR_MESSAGE" \
             --button="OK:0" \
-            --width=400 \
-            --height=150 \
+            --width=600 \
+            --height=300 \
             --center
     else
         log "Test completed successfully."
