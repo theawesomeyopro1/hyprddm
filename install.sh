@@ -236,24 +236,25 @@ prepare_thumbnails() {
     chmod -R 755 "$TEMP_DIR"
     
     declare -A theme_previews
-    theme_previews=(
-        ["chainsaw_fury"]="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/chainsaw_fury.png"
-        ["cloud"]="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/cloud.png"
-        ["neon_jinx"]="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/neon_jinx.png"
-        ["savage"]="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/savage.png"
-        ["starman"]="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/starman.png"
-        ["astronaut"]="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/astronaut.png"
-        ["cyberpunk"]="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/cyberpunk.png"
-        ["hyprland_kath"]="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/hyprland_kath.png"
-        ["jake_the_dog"]="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/jake_the_dog.png"
-        ["japanese_aesthetic"]="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/japanese_aesthetic.png"
-        ["pixel_sakura"]="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/pixel_sakura_static.png"
-        ["post-apocalyptic_hacker"]="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/post-apocalyptic_hacker.png"
-        ["purple_leaves"]="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/purple_leaves.png"
-        ["renzu"]="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/renzu.png"
-        ["cybermonk"]="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/cybermonk.png"
-        ["ghost"]="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/ghost.png"
-    )
+theme_previews=(
+    ["chainsaw_fury"]="https://github.com/theawesomeyopro1/hyprddm/raw/master/Previews/chainsaw_fury.png"
+    ["cloud"]="https://github.com/theawesomeyopro1/hyprddm/raw/master/Previews/cloud.png"
+    ["neon_jinx"]="https://github.com/theawesomeyopro1/hyprddm/raw/master/Previews/neon_jinx.png"
+    ["savage"]="https://github.com/theawesomeyopro1/hyprddm/raw/master/Previews/savage.png"
+    ["starman"]="https://github.com/theawesomeyopro1/hyprddm/raw/master/Previews/starman.png"
+    ["astronaut"]="https://github.com/theawesomeyopro1/hyprddm/raw/master/Previews/astronaut.png"
+    ["cyberpunk"]="https://github.com/theawesomeyopro1/hyprddm/raw/master/Previews/cyberpunk.png"
+    ["hyprland_kath"]="https://github.com/theawesomeyopro1/hyprddm/raw/master/Previews/hyprland_kath.png"
+    ["jake_the_dog"]="https://github.com/theawesomeyopro1/hyprddm/raw/master/Previews/jake_the_dog.png"
+    ["japanese_aesthetic"]="https://github.com/theawesomeyopro1/hyprddm/raw/master/Previews/japanese_aesthetic.png"
+    ["pixel_sakura"]="https://github.com/theawesomeyopro1/hyprddm/raw/master/Previews/pixel_sakura_static.png"
+    ["post-apocalyptic_hacker"]="https://github.com/theawesomeyopro1/hyprddm/raw/master/Previews/post-apocalyptic_hacker.png"
+    ["purple_leaves"]="https://github.com/theawesomeyopro1/hyprddm/raw/master/Previews/purple_leaves.png"
+    ["renzu"]="https://github.com/theawesomeyopro1/hyprddm/raw/master/Previews/renzu.png"
+    ["cybermonk"]="https://github.com/theawesomeyopro1/hyprddm/raw/master/Previews/cybermonk.png"
+    ["ghost"]="https://github.com/theawesomeyopro1/hyprddm/raw/master/Previews/ghost.png"
+)
+
     
     for theme in "${!theme_previews[@]}"; do
         local_file="$THEMES_PATH/Backgrounds/$theme.png"
