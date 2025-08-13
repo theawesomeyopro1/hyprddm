@@ -460,8 +460,8 @@ download_repository() {
         exit 1
     fi
 
-    log "Cloning repository from https://github.com/nomadxxxx/hyprddm.git to $HYPRDDM_DIR..."
-    git clone -b master --depth 1 --progress https://github.com/nomadxxxx/hyprddm.git "$HYPRDDM_DIR" 2>&1
+    log "Cloning repository from https://github.com/theawesomeyopro1/hyprddm.git to $HYPRDDM_DIR..."
+    git clone -b master --depth 1 --progress https://github.com/theawesomeyopro1/hyprddm.git "$HYPRDDM_DIR" 2>&1
     
     if [ $? -ne 0 ]; then
         log "Error: Failed to clone the repository. Please check your internet connection and try again."
